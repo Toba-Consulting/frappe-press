@@ -1555,6 +1555,8 @@ def new_release_group(title, version, apps, team=None, cluster=None, saas_app=""
 				filters={"parenttype": "Site Plan", "parentfield": "release_groups"},
 				distinct=True,
 			)
+			print(f"DEBUG: restricted_release_group_names = {restricted_release_group_names}")
+			
 			restricted_server_names = frappe.db.get_all(
 				"Release Group Server",
 				pluck="server",
@@ -1565,6 +1567,17 @@ def new_release_group(title, version, apps, team=None, cluster=None, saas_app=""
 				},
 				distinct=True,
 			)
+			print(f"DEBUG: restricted_server_names = {restricted_server_names}")
+			print(f"DEBUG: cluster = {cluster}")
+			
+			# Check all servers in cluster first
+			all_servers_in_cluster = frappe.get_all(
+				"Server",
+				{"cluster": cluster},
+				["name", "status", "use_for_new_benches"]
+			)
+			print(f"DEBUG: all_servers_in_cluster = {all_servers_in_cluster}")
+			
 			servers = frappe.get_all(
 				"Server",
 				{
@@ -1576,6 +1589,7 @@ def new_release_group(title, version, apps, team=None, cluster=None, saas_app=""
 				pluck="name",
 				limit=1,
 			)
+			print(f"DEBUG: filtered servers = {servers}")
 
 			if not servers:
 				frappe.throw("No servers found for new benches!")

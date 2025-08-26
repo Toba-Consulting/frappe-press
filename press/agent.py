@@ -1253,6 +1253,7 @@ Response: {reason or getattr(result, "text", "Unknown")}
 
 	def run_build(self, data: dict):
 		reference_name = data.get("deploy_candidate_build")
+		print(f"DEBUG ::: Run Build : {data}")
 		return self.create_agent_job(
 			"Run Remote Builder",
 			"builder/build",

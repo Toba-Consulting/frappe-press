@@ -76,6 +76,7 @@ class AnsibleCallback(CallbackBase):
 			# Assume we're running on one host
 			host = next(iter(stats.processed.keys()))
 			play.update(stats.summarize(host))
+			print(f"DEBUG :: {play.failures}, {play.unreachable}")
 			if play.failures or play.unreachable:
 				play.status = "Failure"
 			else:
@@ -154,9 +155,12 @@ class Ansible:
 	def __init__(self, server, playbook, user="root", variables=None, port=22):
 		self.patch()
 		self.server = server
+		print(f"DEBUG :: server = {self.server}")
 		self.playbook = playbook
 		self.playbook_path = frappe.get_app_path("press", "playbooks", self.playbook)
-		self.host = f"{server.ip}:{port}"
+		#self.host = f"{server.ip}:{port}"
+		self.host = f"{server.name}:{port}"
+		print(f"DEBUG :: this is ip {server.name}, {server.ip}")
 		self.variables = variables or {}
 
 		constants.HOST_KEY_CHECKING = False
@@ -172,10 +176,13 @@ class Ansible:
 			verbosity=1,
 		)
 
+		print(f"CLIARGS: {context.CLIARGS}")
+
 		self.loader = DataLoader()
 		self.passwords = dict({})
 
 		self.sources = f"{self.host},"
+		print(f"DEBUG :: host = {self.sources}")
 		self.inventory = InventoryManager(loader=self.loader, sources=self.sources)
 		self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
 
@@ -216,6 +223,8 @@ class Ansible:
 			loader=self.loader,
 			passwords=self.passwords,
 		)
+
+		print(f"play: {self.playbook_path}, {self.inventory}, {self.variable_manager}, {self.loader}, {self.passwords}")
 		# Use AnsibleCallback so we can receive updates for tasks execution
 		self.executor._tqm._stdout_callback = self.callback
 		self.callback.play = self.play

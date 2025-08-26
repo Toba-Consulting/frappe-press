@@ -170,6 +170,7 @@ class AgentJob(Document):
 			data = json.loads(self.request_data)
 			files = json.loads(self.request_files)
 
+			print(f"DEBUG:::this is request path {self.request_path}, for agent {agent}")
 			self.job_id = agent.request(self.request_method, self.request_path, data, files, agent_job=self)[
 				"job"
 			]
@@ -991,6 +992,7 @@ def process_job_updates(job_name: str, response_data: dict | None = None):  # no
 		)
 
 		site_migration = get_ongoing_migration(job.site)
+		print(f"DEBUG::: site migration : {site_migration}, jobtype = {job.job_type}")
 		if site_migration:
 			process_site_migration_job_update(job, site_migration)
 		elif job.job_type == "Add Upstream to Proxy":

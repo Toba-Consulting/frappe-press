@@ -25,7 +25,6 @@ class ProxyServer(BaseServer):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
-
 		from press.press.doctype.proxy_server_domain.proxy_server_domain import ProxyServerDomain
 
 		agent_password: DF.Password | None
@@ -85,6 +84,7 @@ class ProxyServer(BaseServer):
 		# Always include self.domain in the domains child table
 		# Remove duplicates
 		domains = unique([self.domain, *domains])
+		domains = [domain for domain in domains if domain]
 		self.domains = []
 		for i, domain in enumerate(domains):
 			if not frappe.db.exists(
@@ -128,12 +128,24 @@ class ProxyServer(BaseServer):
 		agent.setup_wildcard_hosts(wildcards)
 
 	def _setup_server(self):
+		print(f"_setup_server: domain='{self.domain}', name='{self.name}'")
+		print(f"DEBUG: self.domain type={type(self.domain)}, value='{self.domain}', is_empty={not self.domain}")
+		if not self.domain:
+			frappe.log_error("Domain is empty/None for Proxy Server", "Proxy Server Setup")
+			raise frappe.ValidationError("Domain must be set before server setup")
+		print(f"DEBUG: Getting agent_password for {self.name}")
 		agent_password = self.get_password("agent_password")
+		print(f"DEBUG: agent_password retrieved: {'***' if agent_password else 'None'}")
 		agent_repository_url = self.get_agent_repository_url()
 		certificate_name = frappe.db.get_value(
 			"TLS Certificate", {"wildcard": True, "domain": self.domain}, "name"
 		)
-		certificate = frappe.get_doc("TLS Certificate", certificate_name)
+		print(f"certificate_name: {certificate_name}")
+		try:
+			certificate = frappe.get_doc("TLS Certificate", certificate_name)
+		except Exception as e:
+			frappe.log_error(f"Failed to get TLS Certificate '{certificate_name}': {str(e)}", "Proxy Server Setup")
+			raise
 		monitoring_password = frappe.get_doc("Cluster", self.cluster).get_password("monitoring_password")
 
 		log_server = frappe.db.get_single_value("Press Settings", "log_server")
@@ -163,7 +175,9 @@ class ProxyServer(BaseServer):
 					"press_url": frappe.utils.get_url(),
 				},
 			)
+			print(f"DEBUG: {self}, {self.ssh_user}, {self.ssh_port}, {self.name}, {self.domain}")
 			play = ansible.run()
+			print(f"DEBUG: play: {play}")
 			self.reload()
 			if play.status == "Success":
 				self.status = "Active"

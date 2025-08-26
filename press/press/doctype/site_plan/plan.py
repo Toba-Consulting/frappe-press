@@ -52,8 +52,9 @@ def filter_by_roles(plans):
 
 	out = []
 	for plan in plans:
+		print(f"Plan Role : {plan}")
 		if frappe.utils.has_common(plan["roles"], frappe.get_roles()):
 			plan.pop("roles", "")
 			out.append(plan)
-
+	print(f"Plans : {out}")
 	return out

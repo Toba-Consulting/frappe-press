@@ -100,7 +100,7 @@ export default {
 						routeName === 'Enable Bench Groups',
 					disabled: enforce2FA,
 				},
-				{
+				/*{
 					name: 'Servers',
 					icon: () => h(Server),
 					route: onboardingComplete ? '/servers' : '/enable-servers',
@@ -109,7 +109,7 @@ export default {
 						routeName.startsWith('Server') ||
 						routeName === 'Enable Servers',
 					disabled: enforce2FA,
-				},
+				},*/
 				{
 					name: 'Marketplace',
 					icon: () => h(App),
@@ -176,7 +176,7 @@ export default {
 					icon: () => h(Globe),
 					route: '/partners',
 					isActive: routeName === 'Partnership',
-					condition: Boolean(this.$team.doc.erpnext_partner),
+					/*condition: Boolean(this.$team.doc.erpnext_partner),*/
 					disabled: enforce2FA,
 				},
 				{
@@ -186,13 +186,13 @@ export default {
 					isActive: routeName.startsWith('Settings'),
 					disabled: enforce2FA,
 				},
-				{
+				/*{
 					name: 'Partner Admin',
 					icon: () => h(Shield),
 					route: '/partner-admin',
 					isActive: routeName === 'Partner Admin',
 					condition: Boolean(this.$team.doc.is_desk_user),
-				},
+				},*/
 			].filter((item) => item.condition ?? true);
 		},
 	},

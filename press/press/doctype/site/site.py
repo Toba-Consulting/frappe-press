@@ -3561,7 +3561,7 @@ def process_fetch_database_table_schema_job_update(job):
 
 def process_new_site_job_update(job):  # noqa: C901
 	site_status = frappe.get_value("Site", job.site, "status", for_update=True)
-
+	print(f"DEBUG:::site_status = {site_status}")
 	other_job_types = {
 		"Add Site to Upstream": ("New Site", "New Site from Backup"),
 		"New Site": ("Add Site to Upstream",),

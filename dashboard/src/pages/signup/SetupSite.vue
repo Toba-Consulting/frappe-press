@@ -83,6 +83,8 @@ export default {
 	},
 	resources: {
 		siteRequest() {
+			console.log(this.productId)
+			console.log(this.$team.doc.account_request)
 			return {
 				url: 'press.api.product_trial.get_request',
 				params: {

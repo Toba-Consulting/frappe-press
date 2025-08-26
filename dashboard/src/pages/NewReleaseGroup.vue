@@ -68,6 +68,7 @@
 				class="flex flex-col"
 				v-if="options?.clusters.length && benchVersion && !server"
 			>
+				{{ console.log('Debug region selector:', { clustersLength: options?.clusters.length, benchVersion, server, shouldShow: options?.clusters.length && benchVersion && !server }) }}
 				<h2 class="text-sm font-medium leading-6 text-gray-900">
 					Select Region
 				</h2>
@@ -182,6 +183,13 @@ export default {
 					clusters: [],
 				},
 				auto: true,
+				onSuccess(data) {
+					console.log('API response for bench.options:', data);
+					console.log('Clusters in response:', data.clusters);
+				},
+				onError(error) {
+					console.error('Error loading bench options:', error);
+				},
 			};
 		},
 		createBench() {
@@ -236,7 +244,9 @@ export default {
 	},
 	computed: {
 		options() {
-			return this.$resources.options.data;
+			const data = this.$resources.options.data;
+			console.log('Options data:', data);
+			return data;
 		},
 		preInstalledApps() {
 			return this.$resources.preInstalledApps.data;

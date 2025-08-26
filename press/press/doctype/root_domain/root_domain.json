@@ -13,7 +13,8 @@
   "column_break_4",
   "dns_provider",
   "aws_access_key_id",
-  "aws_secret_access_key"
+  "aws_secret_access_key",
+  "cloudflare_api_key"
  ],
  "fields": [
   {
@@ -23,7 +24,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "DNS Provider",
-   "options": "AWS Route 53\nGeneric",
+   "options": "AWS Route 53\nCloudflare\nGeneric",
    "reqd": 1
   },
   {
@@ -66,6 +67,12 @@
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
+  },
+  {
+   "depends_on": "eval:doc.dns_provider=='Cloudflare'",
+   "fieldname": "cloudflare_api_key",
+   "fieldtype": "Data",
+   "label": "Cloudflare API Key"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -101,7 +108,7 @@
    "link_fieldname": "domain"
   }
  ],
- "modified": "2025-07-07 13:57:57.363562",
+ "modified": "2025-08-21 14:51:17.218306",
  "modified_by": "Administrator",
  "module": "Press",
  "name": "Root Domain",

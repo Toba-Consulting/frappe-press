@@ -899,6 +899,12 @@ def get_site_plans():
 			plan.restricted_plan = False
 		filtered_plans.append(plan)
 
+	print(f"🎯 Final result: Returning {len(filtered_plans)} plans")
+	if filtered_plans:
+		print("📝 Final plan names:", [p.name for p in filtered_plans])
+	else:
+		print("❌ No plans in final result - all were filtered out")
+	
 	return filtered_plans
 
 

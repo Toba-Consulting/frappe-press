@@ -535,6 +535,7 @@ class DatabaseServer(BaseServer):
 				self.server_id = 1
 
 	def _setup_server(self):
+		print(f"DEBUG :: self, {self}, {self.domain}")
 		config = self._get_config()
 		try:
 			ansible = Ansible(
@@ -578,9 +579,12 @@ class DatabaseServer(BaseServer):
 		self.save()
 
 	def _get_config(self):
+		print(f"DEBUG:: domain {self.domain}")
+
 		certificate_name = frappe.db.get_value(
 			"TLS Certificate", {"wildcard": True, "domain": self.domain}, "name"
 		)
+
 		certificate = frappe.get_doc("TLS Certificate", certificate_name)
 
 		log_server = frappe.db.get_single_value("Press Settings", "log_server")

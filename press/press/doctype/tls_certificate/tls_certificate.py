@@ -474,25 +474,35 @@ class LetsEncrypt(BaseCA):
 
 	def _obtain_wildcard(self):
 		domain = frappe.get_doc("Root Domain", self.domain[2:])
-		environment = os.environ
-		environment.update(
-			{
-				"AWS_ACCESS_KEY_ID": domain.aws_access_key_id,
-				"AWS_SECRET_ACCESS_KEY": domain.get_password("aws_secret_access_key"),
-			}
-		)
+		environment = os.environ.copy()
+		
+		if domain.dns_provider == "AWS Route 53":
+			environment.update(
+				{
+					"AWS_ACCESS_KEY_ID": domain.aws_access_key_id,
+					"AWS_SECRET_ACCESS_KEY": domain.get_password("aws_secret_access_key"),
+				}
+			)
+		elif domain.dns_provider == "Cloudflare":
+			self._create_cloudflare_credentials(domain)
+		
 		self.run(self._certbot_command(), environment=environment)
 
 	def _obtain_naked_with_dns(self):
 		domain = frappe.get_all("Root Domain", pluck="name", limit=1)[0]
 		domain = frappe.get_doc("Root Domain", domain)
-		environment = os.environ
-		environment.update(
-			{
-				"AWS_ACCESS_KEY_ID": domain.aws_access_key_id,
-				"AWS_SECRET_ACCESS_KEY": domain.get_password("aws_secret_access_key"),
-			}
-		)
+		environment = os.environ.copy()
+		
+		if domain.dns_provider == "AWS Route 53":
+			environment.update(
+				{
+					"AWS_ACCESS_KEY_ID": domain.aws_access_key_id,
+					"AWS_SECRET_ACCESS_KEY": domain.get_password("aws_secret_access_key"),
+				}
+			)
+		elif domain.dns_provider == "Cloudflare":
+			self._create_cloudflare_credentials(domain)
+		
 		self.run(self._certbot_command(), environment=environment)
 
 	def _obtain_naked(self):
@@ -500,9 +510,30 @@ class LetsEncrypt(BaseCA):
 			os.mkdir(self.webroot_directory)
 		self.run(self._certbot_command())
 
+	def _create_cloudflare_credentials(self, domain):
+		"""Create cloudflare.ini credentials file for certbot-dns-cloudflare plugin"""
+		cloudflare_ini_path = os.path.join(self.directory, "cloudflare.ini")
+		credentials_content = f"""# Cloudflare API credentials used by Certbot
+dns_cloudflare_api_token = {domain.get_password("cloudflare_api_key")}
+"""
+		with open(cloudflare_ini_path, "w") as f:
+			f.write(credentials_content)
+		# Set proper permissions (readable only by owner)
+		os.chmod(cloudflare_ini_path, 0o600)
+
 	def _certbot_command(self):
 		if self.wildcard or frappe.conf.developer_mode:
-			plugin = "--dns-route53"
+			# Determine DNS plugin based on domain's DNS provider
+			domain_name = self.domain[2:] if self.wildcard else self.domain
+			try:
+				root_domain = frappe.get_doc("Root Domain", domain_name)
+				if root_domain.dns_provider == "Cloudflare":
+					plugin = f"--dns-cloudflare --dns-cloudflare-credentials {self.directory}/cloudflare.ini"
+				else:  # AWS Route 53 or fallback
+					plugin = "--dns-route53"
+			except frappe.DoesNotExistError:
+				# Fallback to Route53 if domain not found
+				plugin = "--dns-route53"
 		else:
 			plugin = f"--webroot --webroot-path {self.webroot_directory}"
 
