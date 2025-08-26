@@ -55,7 +55,7 @@ class Subscription(Document):
 		Subscription = frappe.qb.DocType("Subscription")
 		UsageRecord = frappe.qb.DocType("Usage Record")
 		Plan = frappe.qb.DocType("Marketplace App Plan")
-		price_field = Plan.price_inr if frappe.local.team().currency == "INR" else Plan.price_usd
+		price_field = Plan.price_idr if frappe.local.team().currency == "INR" else Plan.price_usd
 		filters = list_args.get("filters", {})
 
 		query = (
@@ -167,7 +167,7 @@ class Subscription(Document):
 		plan = frappe.get_cached_doc(self.plan_type, self.plan)
 
 		if self.additional_storage:
-			price = plan.price_inr if team.currency == "INR" else plan.price_usd
+			price = plan.price_idr if team.currency == "IDR" else plan.price_usd
 			price_per_day = price / plan.period  # no rounding off to avoid discrepancies
 			amount = flt((price_per_day * cint(self.additional_storage)), 2)
 		else:
@@ -330,7 +330,7 @@ def paid_plans():
 			paid_plans += (
 				frappe.qb.from_(doctype)
 				.select(doctype.name)
-				.where(doctype.price_inr > 0)
+				.where(doctype.price_idr > 0)
 				.where((doctype.enabled == 1) | (doctype.legacy_plan == 1))
 				.run(pluck=True)
 			)
@@ -338,7 +338,7 @@ def paid_plans():
 			paid_plans += (
 				frappe.qb.from_(doctype)
 				.select(doctype.name)
-				.where(doctype.price_inr > 0)
+				.where(doctype.price_idr > 0)
 				.where(doctype.enabled == 1)
 				.run(pluck=True)
 			)

@@ -92,7 +92,7 @@ class BaseServer(Document, TagHelpers):
 			db_plan_name = frappe.db.get_value("Database Server", result.database_server, "plan")
 			result.db_plan = (
 				frappe.db.get_value(
-					"Server Plan", db_plan_name, ["title", "price_inr", "price_usd"], as_dict=True
+					"Server Plan", db_plan_name, ["title", "price_idr", "price_usd"], as_dict=True
 				)
 				if db_plan_name
 				else None
@@ -129,7 +129,7 @@ class BaseServer(Document, TagHelpers):
 		doc.storage_plan = frappe.db.get_value(
 			"Server Storage Plan",
 			{"enabled": 1},
-			["price_inr", "price_usd"],
+			["price_idr", "price_usd"],
 			as_dict=True,
 		)
 		doc.usage = usage(self.name)

@@ -9,8 +9,8 @@
 					<div>
 						<span>
 							{{
-								subscription.currency === 'INR'
-									? '₹' + plan.price_inr
+								subscription.currency === 'IDR'
+									? 'Rp' + plan.price_idr
 									: '$' + plan.price_usd
 							}}
 							<span class="text-base font-normal text-gray-600">

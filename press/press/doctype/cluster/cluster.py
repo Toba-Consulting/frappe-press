@@ -807,7 +807,7 @@ class Cluster(Document):
 				"name": f"Basic Cluster - {server_type}",
 				"title": f"Basic Cluster - {server_type}",
 				"instance_type": "t2.medium",
-				"price_inr": 0,
+				"price_idr": 0,
 				"price_usd": 0,
 				"vcpu": 2,
 				"memory": 4096,

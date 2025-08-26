@@ -366,11 +366,11 @@ export default {
 			return this.options.plans.map((plan) => ({
 				...plan,
 				label:
-					plan.price_inr === 0 || plan.price_usd === 0
+					plan.price_idr === 0 || plan.price_usd === 0
 						? 'Free'
 						: `${this.$format.userCurrency(
-								this.$team.doc.currency === 'INR'
-									? plan.price_inr
+								this.$team.doc.currency === 'IDR'
+									? plan.price_idr
 									: plan.price_usd,
 							)}/mo`,
 				sublabel: ' ',

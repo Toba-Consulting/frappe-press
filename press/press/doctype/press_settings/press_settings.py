@@ -10,6 +10,7 @@ from frappe.utils import get_url, validate_email_address
 from twilio.rest import Client
 
 from press.api.billing import get_stripe
+from press.utils.billing import get_midtrans
 from press.press.doctype.telegram_message.telegram_message import TelegramMessage
 from press.telegram_utils import Telegram
 
@@ -22,7 +23,6 @@ class PressSettings(Document):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
-
 		from press.press.doctype.app_group.app_group import AppGroup
 		from press.press.doctype.erpnext_app.erpnext_app import ERPNextApp
 
@@ -55,6 +55,7 @@ class PressSettings(Document):
 		default_apps: DF.Table[AppGroup]
 		default_outgoing_id: DF.Data | None
 		default_outgoing_pass: DF.Data | None
+		default_payment_gateway: DF.Literal["Stripe", "Midtrans"]
 		disable_agent_job_deduplication: DF.Check
 		disable_auto_retry: DF.Check
 		disable_frappe_auth: DF.Check
@@ -80,7 +81,6 @@ class PressSettings(Document):
 		erpnext_group: DF.Link | None
 		erpnext_plan: DF.Link | None
 		erpnext_url: DF.Data | None
-		execute_incident_action: DF.Check
 		frappe_url: DF.Data | None
 		frappeio_api_key: DF.Data | None
 		frappeio_api_secret: DF.Password | None
@@ -105,6 +105,10 @@ class PressSettings(Document):
 		max_failed_backup_attempts_in_a_day: DF.Int
 		micro_debit_charge_inr: DF.Currency
 		micro_debit_charge_usd: DF.Currency
+		midtrans_client_key: DF.Password | None
+		midtrans_merchant_id: DF.Data | None
+		midtrans_sandbox: DF.Check
+		midtrans_server_key: DF.Password | None
 		minimum_rebuild_memory: DF.Int
 		monitor_server: DF.Link | None
 		monitor_token: DF.Data | None
@@ -222,6 +226,25 @@ class PressSettings(Document):
 		self.stripe_webhook_secret = webhook["secret"]
 		self.flags.ignore_mandatory = True
 		self.save()
+
+	@frappe.whitelist()
+	def create_midtrans_webhook(self):
+		"""Create Midtrans notification webhook endpoint"""
+		import requests
+		
+		midtrans = get_midtrans()
+		
+		# Midtrans doesn't have a webhook creation API like Stripe
+		# Instead, webhooks are configured through the Midtrans dashboard
+		# This method can be used to test webhook configuration
+		webhook_url = frappe.utils.get_url(
+			"/api/method/press.press.doctype.midtrans_webhook_log.midtrans_webhook_log.midtrans_webhook_handler"
+		)
+		
+		# For now, just return the webhook URL that should be configured in Midtrans dashboard
+		frappe.msgprint(f"Please configure this webhook URL in your Midtrans dashboard: {webhook_url}")
+		
+		return {"webhook_url": webhook_url}
 
 	@frappe.whitelist()
 	def get_github_app_manifest(self):

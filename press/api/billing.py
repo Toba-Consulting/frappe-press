@@ -28,6 +28,11 @@ from press.utils import get_current_team
 from press.utils.billing import (
 	GSTIN_FORMAT,
 	clear_setup_intent,
+	create_midtrans_payment,
+	create_midtrans_snap_token,
+	format_midtrans_money,
+	get_midtrans,
+	get_midtrans_client_key,
 	get_publishable_key,
 	get_razorpay_client,
 	get_setup_intent,
@@ -48,6 +53,459 @@ def get_publishable_key_and_setup_intent():
 		"publishable_key": get_publishable_key(),
 		"setup_intent": get_setup_intent(team),
 	}
+
+
+@frappe.whitelist()
+def get_midtrans_client_key_and_config():
+	"""Get Midtrans client key and configuration for frontend"""
+	is_sandbox = frappe.db.get_single_value("Press Settings", "midtrans_sandbox") or True
+	return {
+		"client_key": get_midtrans_client_key(),
+		"is_sandbox": is_sandbox
+	}
+
+
+@frappe.whitelist()
+def get_billing_information_gateway_agnostic(timezone=None):
+	"""Get billing information without initializing any payment gateway"""
+	from press.utils.country_timezone import get_country_from_timezone
+	
+	team = get_current_team()
+	team_doc = frappe.get_doc("Team", team)
+	
+	billing_details = frappe._dict()
+	if team_doc.billing_address:
+		billing_details = frappe.get_doc("Address", team_doc.billing_address).as_dict()
+		billing_details.billing_name = team_doc.billing_name
+
+	if not billing_details.country and timezone:
+		billing_details.country = get_country_from_timezone(timezone)
+
+	return billing_details
+
+
+@frappe.whitelist()
+def get_payment_methods():
+	"""Get payment methods for current team using default gateway"""
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		# Get Stripe payment methods (assuming this function exists)
+		return frappe.call('press.api.billing.get_stripe_payment_methods')
+	else:
+		# Get Midtrans payment methods
+		return get_midtrans_payment_methods()
+
+
+@frappe.whitelist()
+def create_payment_for_credits(amount, currency=None):
+	"""Create payment for credits using default gateway"""
+	team = get_current_team()
+	team_doc = frappe.get_doc("Team", team)
+	
+	# Use team currency if not specified
+	if not currency:
+		currency = team_doc.currency
+	
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		# Create Stripe payment (would need to implement this)
+		return frappe.throw("Stripe credit payment not implemented yet")
+	else:
+		# Create Midtrans payment
+		return create_midtrans_prepaid_credits(amount, currency)
+
+
+@frappe.whitelist()
+def create_payment_for_invoice(invoice_id):
+	"""Create payment for invoice using default gateway"""
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		# Create Stripe invoice payment (would need to implement this)
+		return frappe.throw("Stripe invoice payment not implemented yet")  
+	else:
+		# Create Midtrans invoice payment
+		return pay_invoice_with_midtrans_snap(invoice_id)
+
+
+@frappe.whitelist()
+def get_default_payment_gateway_config():
+	"""Get payment gateway configuration based on Press Settings"""
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		# Return Stripe configuration
+		team = get_current_team()
+		return {
+			"gateway": "Stripe",
+			"publishable_key": get_publishable_key(),
+			"setup_intent": get_setup_intent(team),
+		}
+	else:
+		# Return Midtrans configuration  
+		is_sandbox = frappe.db.get_single_value("Press Settings", "midtrans_sandbox") or True
+		return {
+			"gateway": "Midtrans", 
+			"client_key": get_midtrans_client_key(),
+			"is_sandbox": is_sandbox
+		}
+
+
+@frappe.whitelist()
+def create_midtrans_snap_payment(amount, currency="IDR", invoice_id=None):
+	"""Create Midtrans Snap token for payment UI"""
+	team = get_current_team()
+	
+	# Generate unique order ID
+	order_id = f"{team}-{frappe.generate_hash(length=10)}"
+	if invoice_id:
+		order_id = f"inv-{invoice_id}-{frappe.generate_hash(length=6)}"
+	
+	# Format amount for Midtrans
+	formatted_amount = format_midtrans_money(float(amount), currency)
+	
+	# Get team details for customer info
+	team_doc = frappe.get_doc("Team", team)
+	customer_details = {
+		"first_name": team_doc.user,
+		"email": team_doc.user,
+		"phone": getattr(team_doc, 'phone', ''),
+	}
+	
+	# Create item details
+	item_details = [
+		{
+			"id": invoice_id or "credit_purchase",
+			"price": formatted_amount,
+			"quantity": 1,
+			"name": f"Invoice {invoice_id}" if invoice_id else "Credit Purchase",
+		}
+	]
+	
+	try:
+		response = create_midtrans_snap_token(
+			order_id=order_id,
+			amount=formatted_amount, 
+			currency=currency,
+			customer_details=customer_details,
+			item_details=item_details
+		)
+		
+		if "token" in response:
+			return {
+				"success": True,
+				"snap_token": response["token"],
+				"order_id": order_id,
+				"redirect_url": response.get("redirect_url")
+			}
+		else:
+			return {
+				"success": False,
+				"error": response.get("error_messages", ["Unknown error occurred"])
+			}
+			
+	except Exception as e:
+		frappe.log_error(f"Midtrans Snap payment creation failed: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Payment processing failed. Please try again."]
+		}
+
+
+@frappe.whitelist()
+def create_midtrans_direct_payment(payment_method_id, amount, currency="IDR", invoice_id=None):
+	"""Create direct payment using saved payment method"""
+	team = get_current_team()
+	
+	# Validate payment method belongs to team
+	payment_method = frappe.get_doc("Midtrans Payment Method", payment_method_id)
+	if payment_method.team != team:
+		frappe.throw("Invalid payment method")
+	
+	# Generate unique order ID
+	order_id = f"{team}-{frappe.generate_hash(length=10)}"
+	if invoice_id:
+		order_id = f"inv-{invoice_id}-{frappe.generate_hash(length=6)}"
+	
+	try:
+		response = create_midtrans_payment(
+			order_id=order_id,
+			amount=format_midtrans_money(float(amount), currency),
+			currency=currency
+		)
+		
+		# Create payment event record
+		frappe.get_doc({
+			"doctype": "Midtrans Payment Event",
+			"midtrans_transaction_id": response.get("transaction_id"),
+			"midtrans_order_id": order_id,
+			"transaction_status": response.get("transaction_status"),
+			"payment_type": response.get("payment_type"),
+			"event_type": "Transaction",
+			"invoice": invoice_id,
+			"team": team,
+			"midtrans_transaction_object": frappe.as_json(response)
+		}).insert(ignore_permissions=True)
+		
+		return {
+			"success": True,
+			"transaction_id": response.get("transaction_id"),
+			"status": response.get("transaction_status"),
+			"order_id": order_id
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Midtrans direct payment failed: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Payment processing failed. Please try again."]
+		}
+
+
+@frappe.whitelist()
+def get_midtrans_payment_methods():
+	"""Get all Midtrans payment methods for current team"""
+	from press.press.doctype.midtrans_payment_method.midtrans_payment_method import get_payment_methods
+	return get_payment_methods()
+
+
+@frappe.whitelist()
+def save_midtrans_payment_method(token, card_details, billing_address=None):
+	"""Save a new Midtrans payment method"""
+	team = get_current_team()
+	
+	try:
+		# Create payment method record
+		payment_method = frappe.get_doc({
+			"doctype": "Midtrans Payment Method",
+			"team": team,
+			"name_on_card": card_details.get("name_on_card"),
+			"last_4": card_details.get("last_4"),
+			"expiry_month": card_details.get("expiry_month"),
+			"expiry_year": card_details.get("expiry_year"),
+			"brand": card_details.get("brand"),
+			"card_type": card_details.get("card_type", "credit"),
+			"midtrans_token": token,
+			"is_default": card_details.get("is_default", False)
+		})
+		
+		if billing_address:
+			# Create address if provided
+			address_doc = frappe.get_doc({
+				"doctype": "Address",
+				"address_title": f"{team} Billing Address",
+				"address_type": "Billing",
+				"address_line1": billing_address.get("address_line1"),
+				"address_line2": billing_address.get("address_line2"),
+				"city": billing_address.get("city"),
+				"state": billing_address.get("state"),
+				"pincode": billing_address.get("pincode"),
+				"country": billing_address.get("country"),
+			})
+			address_doc.append("links", {
+				"link_doctype": "Midtrans Payment Method",
+				"link_name": payment_method.name
+			})
+			address_doc.insert(ignore_permissions=True)
+			
+		payment_method.insert(ignore_permissions=True)
+		
+		return {
+			"success": True,
+			"payment_method_id": payment_method.name,
+			"is_default": payment_method.is_default
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Failed to save Midtrans payment method: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Failed to save payment method. Please try again."]
+		}
+
+
+@frappe.whitelist()
+def set_default_midtrans_payment_method(payment_method_id):
+	"""Set a Midtrans payment method as default"""
+	team = get_current_team()
+	
+	# Validate payment method belongs to team
+	payment_method = frappe.get_doc("Midtrans Payment Method", payment_method_id)
+	if payment_method.team != team:
+		frappe.throw("Invalid payment method")
+	
+	try:
+		# Update all payment methods for team to non-default
+		frappe.db.sql(
+			"""UPDATE `tabMidtrans Payment Method` 
+			   SET is_default = 0 
+			   WHERE team = %s""",
+			[team]
+		)
+		
+		# Set this one as default
+		payment_method.is_default = 1
+		payment_method.save(ignore_permissions=True)
+		
+		return {"success": True}
+		
+	except Exception as e:
+		frappe.log_error(f"Failed to set default payment method: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Failed to update payment method. Please try again."]
+		}
+
+
+@frappe.whitelist()
+def delete_midtrans_payment_method(payment_method_id):
+	"""Delete a Midtrans payment method"""
+	team = get_current_team()
+	
+	# Validate payment method belongs to team
+	payment_method = frappe.get_doc("Midtrans Payment Method", payment_method_id)
+	if payment_method.team != team:
+		frappe.throw("Invalid payment method")
+	
+	try:
+		return payment_method.delete()
+	except Exception as e:
+		frappe.log_error(f"Failed to delete payment method: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Failed to delete payment method. Please try again."]
+		}
+
+
+@frappe.whitelist()
+def pay_invoice_with_midtrans_snap(invoice_id):
+	"""Create Snap payment for a specific invoice"""
+	team = get_current_team()
+	
+	# Validate invoice exists and belongs to team
+	invoice = frappe.get_doc("Invoice", invoice_id)
+	if invoice.team != team:
+		frappe.throw("Invalid invoice")
+	
+	if invoice.status == "Paid":
+		return {
+			"success": False,
+			"error": ["Invoice is already paid"]
+		}
+	
+	# Use the existing snap payment endpoint
+	return create_midtrans_snap_payment(
+		amount=invoice.amount_due,
+		currency=invoice.currency,
+		invoice_id=invoice_id
+	)
+
+
+@frappe.whitelist()
+def pay_invoice_with_midtrans_method(invoice_id, payment_method_id):
+	"""Pay invoice using saved Midtrans payment method"""
+	team = get_current_team()
+	
+	# Validate invoice exists and belongs to team
+	invoice = frappe.get_doc("Invoice", invoice_id)
+	if invoice.team != team:
+		frappe.throw("Invalid invoice")
+	
+	if invoice.status == "Paid":
+		return {
+			"success": False,
+			"error": ["Invoice is already paid"]
+		}
+	
+	# Use the existing direct payment endpoint
+	response = create_midtrans_direct_payment(
+		payment_method_id=payment_method_id,
+		amount=invoice.amount_due,
+		currency=invoice.currency,
+		invoice_id=invoice_id
+	)
+	
+	# Update invoice status if payment successful
+	if response.get("success") and response.get("status") in ["capture", "settle"]:
+		try:
+			invoice.status = "Paid"
+			invoice.save(ignore_permissions=True)
+			frappe.db.commit()
+		except Exception as e:
+			frappe.log_error(f"Failed to update invoice status: {str(e)}")
+	
+	return response
+
+
+@frappe.whitelist()
+def create_midtrans_prepaid_credits(amount, currency="IDR"):
+	"""Create Snap payment for prepaid credits"""
+	team = get_current_team()
+	
+	if float(amount) < 1:
+		return {
+			"success": False,
+			"error": ["Minimum amount is 1.00"]
+		}
+	
+	# Create Snap token for prepaid credits
+	return create_midtrans_snap_payment(
+		amount=amount,
+		currency=currency,
+		invoice_id=None  # No specific invoice, this is for credits
+	)
+
+
+@frappe.whitelist()
+def verify_midtrans_payment_status(order_id, transaction_id=None):
+	"""Verify payment status from Midtrans"""
+	import requests
+	
+	try:
+		midtrans = get_midtrans()
+		
+		# Use transaction_id if provided, otherwise use order_id
+		payment_id = transaction_id or order_id
+		url = f"{midtrans['sandbox_url'] if midtrans['is_sandbox'] else midtrans['production_url']}/{payment_id}/status"
+		
+		headers = {
+			"Accept": "application/json",
+			"Authorization": midtrans["auth_header"]
+		}
+		
+		response = requests.get(url, headers=headers)
+		payment_data = response.json()
+		
+		# Update payment event if exists
+		if payment_data.get("transaction_status"):
+			payment_event = frappe.db.get_value(
+				"Midtrans Payment Event", 
+				{"midtrans_order_id": order_id}, 
+				"name"
+			)
+			
+			if payment_event:
+				event_doc = frappe.get_doc("Midtrans Payment Event", payment_event)
+				event_doc.transaction_status = payment_data.get("transaction_status")
+				event_doc.midtrans_transaction_object = frappe.as_json(payment_data)
+				event_doc.save(ignore_permissions=True)
+				event_doc.map_transaction_status_to_payment_status()
+				event_doc.save(ignore_permissions=True)
+		
+		return {
+			"success": True,
+			"status": payment_data.get("transaction_status"),
+			"payment_data": payment_data
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Failed to verify Midtrans payment status: {str(e)}")
+		return {
+			"success": False,
+			"error": ["Failed to verify payment status"]
+		}
 
 
 @frappe.whitelist()
@@ -272,6 +730,7 @@ def create_payment_intent_for_micro_debit():
 	return {"client_secret": intent["client_secret"]}
 
 
+
 @frappe.whitelist()
 def create_payment_intent_for_partnership_fees():
 	team = get_current_team(True)
@@ -279,7 +738,7 @@ def create_payment_intent_for_partnership_fees():
 	metadata = {"payment_for": "partnership_fee"}
 	fee_amount = press_settings.partnership_fee_usd
 
-	if team.currency == "INR":
+	if team.currency == "IDR":
 		fee_amount = press_settings.partnership_fee_inr
 		gst_amount = fee_amount * press_settings.gst_percentage
 		fee_amount += gst_amount
@@ -601,6 +1060,7 @@ def validate_gst(address, method=None):
 	if not address.gstin:
 		frappe.throw("GSTIN is required for Indian customers.")
 
+	print(f"DEBUG:::address {address}")
 	if address.gstin and address.gstin != "Not Applicable":
 		if not GSTIN_FORMAT.match(address.gstin):
 			frappe.throw("Invalid GSTIN. The input you've entered does not match the format of GSTIN.")

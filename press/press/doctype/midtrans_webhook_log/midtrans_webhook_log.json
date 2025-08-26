@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "autoname": "Prompt",
+ "creation": "2025-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "event_type",
+  "invoice",
+  "team",
+  "column_break_hywj",
+  "transaction_id",
+  "order_id",
+  "midtrans_payment_method",
+  "transaction_status",
+  "section_break_ecbt",
+  "payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Event Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payload",
+   "fieldtype": "Code",
+   "label": "Payload",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "label": "Midtrans Transaction ID"
+  },
+  {
+   "fieldname": "invoice",
+   "fieldtype": "Link",
+   "label": "Invoice",
+   "options": "Invoice",
+   "search_index": 1
+  },
+  {
+   "fieldname": "order_id",
+   "fieldtype": "Data",
+   "label": "Midtrans Order ID"
+  },
+  {
+   "fieldname": "team",
+   "fieldtype": "Link",
+   "label": "Team",
+   "options": "Team",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_hywj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "This is shown when a payment method is used",
+   "fieldname": "midtrans_payment_method",
+   "fieldtype": "Link",
+   "label": "Midtrans Payment Method",
+   "options": "Midtrans Payment Method",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_ecbt",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "transaction_status",
+   "fieldtype": "Data",
+   "label": "Transaction Status"
+  }
+ ],
+ "links": [],
+ "modified": "2025-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Press",
+ "name": "Midtrans Webhook Log",
+ "naming_rule": "Set by user",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -674,14 +674,14 @@ export default {
 		},
 		_totalPerMonth() {
 			let total =
-				this.$team.doc.currency == 'INR'
-					? this.selectedPlan.price_inr
+				this.$team.doc.currency == 'IDR'
+					? this.selectedPlan.price_idr
 					: this.selectedPlan.price_usd;
 
 			for (let app of this.apps.filter((app) => app.plan)) {
 				total +=
-					this.$team.doc.currency == 'INR'
-						? app.plan.price_inr
+					this.$team.doc.currency == 'IDR'
+						? app.plan.price_idr
 						: app.plan.price_usd;
 			}
 
@@ -702,10 +702,10 @@ export default {
 					`${
 						this.selectedVersionApps.find((a) => a.app === app.app).app_title
 					} ${
-						app.plan?.price_inr
+						app.plan?.price_idr
 							? `- <span class="text-gray-600">${this.$format.userCurrency(
-									this.$team.doc.currency == 'INR'
-										? app.plan.price_inr
+									this.$team.doc.currency == 'IDR'
+										? app.plan.price_idr
 										: app.plan.price_usd,
 								)} per month</span>`
 							: ''
@@ -729,8 +729,8 @@ export default {
 				{
 					label: 'Site Plan',
 					value: `${this.$format.userCurrency(
-						this.$team.doc.currency == 'INR'
-							? this.selectedPlan.price_inr
+						this.$team.doc.currency == 'IDR'
+							? this.selectedPlan.price_idr
 							: this.selectedPlan.price_usd,
 					)} per month`,
 				},

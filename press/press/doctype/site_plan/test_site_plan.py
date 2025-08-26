@@ -14,7 +14,7 @@ from frappe.tests.utils import FrappeTestCase
 def create_test_plan(
 	document_type: str,
 	price_usd: float = 10.0,
-	price_inr: float = 750.0,
+	price_idr: float = 750.0,
 	cpu_time: int = 1,
 	max_database_usage: int = 1000,
 	max_storage_usage: int = 1000,
@@ -35,7 +35,7 @@ def create_test_plan(
 			"document_type": "Site",
 			"name": plan_name,
 			"plan_title": plan_title,
-			"price_inr": price_inr,
+			"price_idr": price_idr,
 			"price_usd": price_usd,
 			"cpu_time_per_day": cpu_time,
 			"max_database_usage": max_database_usage,

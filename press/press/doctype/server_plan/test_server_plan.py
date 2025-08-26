@@ -19,7 +19,7 @@ def create_test_server_plan(server_type: str = "Server") -> "ServerPlan":
 			"name": make_autoname("SP-.####"),
 			"server_type": server_type,
 			"title": frappe.mock("name"),
-			"price_inr": 1000,
+			"price_idr": 1000,
 			"price_usd": 200,
 			"enabled": 1,
 		}

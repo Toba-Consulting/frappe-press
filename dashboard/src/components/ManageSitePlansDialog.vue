@@ -121,7 +121,7 @@
 				<PrepaidCreditsForm
 					v-else
 					:minimumAmount="
-						$team.doc?.currency === 'INR' ? plan.price_inr : plan.price_usd
+						$team.doc?.currency === 'IDR' ? plan.price_idr : plan.price_usd
 					"
 					@success="paymentModeAdded"
 				/>

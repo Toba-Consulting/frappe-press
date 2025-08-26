@@ -836,7 +836,7 @@ class ReleaseGroup(Document, TagHelpers):
 			Plan = frappe.qb.DocType("Site Plan")
 			plan_data = (
 				frappe.qb.from_(Plan)
-				.select(Plan.name, Plan.plan_title, Plan.price_inr, Plan.price_usd)
+				.select(Plan.name, Plan.plan_title, Plan.price_idr, Plan.price_usd)
 				.where(Plan.name.isin([site.plan for site in sites_in_group_details]))
 				.run(as_dict=True)
 			)

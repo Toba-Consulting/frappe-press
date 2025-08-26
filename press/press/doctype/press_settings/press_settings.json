@@ -25,6 +25,14 @@
   "npo_discount",
   "column_break_qfwx",
   "print_format",
+  "default_payment_section",
+  "default_payment_gateway",
+  "midtrans_setting_section",
+  "midtrans_merchant_id",
+  "midtrans_sandbox",
+  "column_break_xxpg",
+  "midtrans_client_key",
+  "midtrans_server_key",
   "stripe_settings_section",
   "stripe_publishable_key",
   "stripe_secret_key",
@@ -216,7 +224,6 @@
   "disable_auto_retry",
   "disable_agent_job_deduplication",
   "enable_email_pre_verification",
-  "execute_incident_action",
   "section_break_jstu",
   "enable_app_grouping",
   "default_apps",
@@ -268,6 +275,14 @@
    "fieldname": "billing_tab",
    "fieldtype": "Tab Break",
    "label": "Billing"
+  },
+  {
+   "default": "Midtrans",
+   "fieldname": "default_payment_gateway",
+   "fieldtype": "Select",
+   "label": "Default Payment Gateway",
+   "options": "Stripe\nMidtrans",
+   "reqd": 1
   },
   {
    "collapsible": 1,
@@ -1447,15 +1462,45 @@
    "label": "NPO Discount"
   },
   {
+   "collapsible": 1,
+   "fieldname": "midtrans_setting_section",
+   "fieldtype": "Section Break",
+   "label": "Midtrans Settings"
+  },
+  {
+   "fieldname": "midtrans_merchant_id",
+   "fieldtype": "Data",
+   "label": "Merchant ID"
+  },
+  {
+   "fieldname": "column_break_xxpg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "midtrans_client_key",
+   "fieldtype": "Password",
+   "label": "Client Key"
+  },
+  {
+   "fieldname": "midtrans_server_key",
+   "fieldtype": "Password",
+   "label": "Server Key"
+  },
+  {
    "default": "0",
-   "fieldname": "execute_incident_action",
+   "fieldname": "midtrans_sandbox",
    "fieldtype": "Check",
-   "label": "Execute Incident Action"
+   "label": "Sandbox"
+  },
+  {
+   "fieldname": "default_payment_section",
+   "fieldtype": "Section Break",
+   "label": "Default Payment Gateway"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2025-08-21 15:21:44.680076",
+ "modified": "2025-08-26 15:57:16.669175",
  "modified_by": "Administrator",
  "module": "Press",
  "name": "Press Settings",

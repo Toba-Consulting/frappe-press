@@ -476,7 +476,7 @@ def options():
 	storage_plan = frappe.db.get_value(
 		"Server Storage Plan",
 		{"enabled": 1},
-		["price_inr", "price_usd"],
+		["price_idr", "price_usd"],
 		as_dict=True,
 	)
 	return {
@@ -505,7 +505,7 @@ def plans(name, cluster=None, platform=None):
 			"name",
 			"title",
 			"price_usd",
-			"price_inr",
+			"price_idr",
 			"vcpu",
 			"memory",
 			"disk",

@@ -10,7 +10,7 @@
   "legacy_plan",
   "title",
   "pricing_section",
-  "price_inr",
+  "price_idr",
   "column_break_sjmg",
   "price_usd",
   "section_break_nifk",
@@ -80,11 +80,11 @@
    "label": "Pricing"
   },
   {
-   "fieldname": "price_inr",
+   "fieldname": "price_idr",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Price (INR)",
-   "options": "INR",
+   "label": "Price (IDR)",
+   "options": "IDR",
    "reqd": 1
   },
   {

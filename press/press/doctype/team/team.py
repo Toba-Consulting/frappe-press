@@ -425,11 +425,17 @@ class Team(Document):
 			self.payment_mode = "Prepaid Credits"
 
 		if self.has_value_changed("payment_mode"):
-			if (
-				self.payment_mode == "Card"
-				and frappe.db.count("Stripe Payment Method", {"team": self.name}) == 0
-			):
-				frappe.throw("No card added")
+			if self.payment_mode == "Card":
+				# Check for payment methods based on default gateway
+				default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+				
+				if default_gateway == "Stripe":
+					card_count = frappe.db.count("Stripe Payment Method", {"team": self.name})
+				else:
+					card_count = frappe.db.count("Midtrans Payment Method", {"team": self.name})
+				
+				if card_count == 0:
+					frappe.throw("No card added")
 			if self.payment_mode == "Prepaid Credits" and self.get_balance() <= 0:
 				frappe.throw("Account does not have sufficient balance")
 
@@ -696,21 +702,32 @@ class Team(Document):
 				log_error("Failed to rename customer on frappe.io", traceback=frappe.get_traceback())
 
 	def update_billing_details_on_stripe(self, address=None):
-		stripe = get_stripe()
-		if not address:
-			address = frappe.get_doc("Address", self.billing_address)
+		# Check if Stripe is the default gateway or if team has Stripe setup
+		default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+		
+		# Skip Stripe update if Midtrans is default and no Stripe customer ID
+		if default_gateway == "Midtrans" and not self.stripe_customer_id:
+			return
+			
+		try:
+			stripe = get_stripe()
+			if not address:
+				address = frappe.get_doc("Address", self.billing_address)
 
-		country_code = frappe.db.get_value("Country", address.country, "code")
-		stripe.Customer.modify(
-			self.stripe_customer_id,
-			address={
-				"line1": address.address_line1,
-				"postal_code": address.pincode,
-				"city": address.city,
-				"state": address.state,
-				"country": country_code.upper(),
-			},
-		)
+			country_code = frappe.db.get_value("Country", address.country, "code")
+			stripe.Customer.modify(
+				self.stripe_customer_id,
+				address={
+					"line1": address.address_line1,
+					"postal_code": address.pincode,
+					"city": address.city,
+					"state": address.state,
+					"country": country_code.upper(),
+				},
+			)
+		except Exception as e:
+			# If Stripe is not configured, just skip the update
+			frappe.log_error(f"Stripe billing update skipped: {str(e)}", "Stripe Billing Update")
 
 	def create_payment_method(
 		self,

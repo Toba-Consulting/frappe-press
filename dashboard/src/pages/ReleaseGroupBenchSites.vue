@@ -89,7 +89,7 @@ export default {
 					'host_name',
 					'plan.plan_title as plan_title',
 					'plan.price_usd as price_usd',
-					'plan.price_inr as price_inr',
+					'plan.price_idr as price_idr',
 					'cluster.image as cluster_image',
 					'cluster.title as cluster_title',
 				],

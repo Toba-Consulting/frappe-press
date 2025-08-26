@@ -12,7 +12,7 @@
   "app",
   "interval",
   "section_break_2",
-  "price_inr",
+  "price_idr",
   "column_break_3",
   "price_usd",
   "plan_features_section",
@@ -56,9 +56,9 @@
    "label": "Pricing"
   },
   {
-   "fieldname": "price_inr",
+   "fieldname": "price_idr",
    "fieldtype": "Currency",
-   "label": "Price (INR)",
+   "label": "Price (IDR)",
    "reqd": 1
   },
   {
@@ -103,7 +103,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-20 20:09:49.783253",
+ "modified": "2025-08-26 13:47:49.174602",
  "modified_by": "Administrator",
  "module": "Marketplace",
  "name": "Marketplace App Plan",
@@ -119,18 +119,6 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Press Marketplace Manager",
    "share": 1,
    "write": 1
   }

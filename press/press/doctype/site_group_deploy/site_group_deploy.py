@@ -95,10 +95,10 @@ class SiteGroupDeploy(Document):
 			{
 				"private_benches": 1,
 				"document_type": "Site",
-				"price_inr": ["!=", 0],
+				"price_idr": ["!=", 0],
 				"price_usd": ["!=", 0],
 			},
-			order_by="price_inr asc",
+			order_by="price_idr asc",
 		)
 
 		apps = [{"app": app.app} for app in self.apps]

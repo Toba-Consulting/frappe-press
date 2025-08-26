@@ -56,7 +56,7 @@ class TestSubscription(FrappeTestCase):
 			document_type="ToDo",
 			interval="Daily",
 			price_usd=30,
-			price_inr=30,
+			price_idr=30,
 		).insert()
 
 		subscription = frappe.get_doc(
@@ -102,7 +102,7 @@ class TestSubscription(FrappeTestCase):
 			document_type="ToDo",
 			interval="Daily",
 			price_usd=30,
-			price_inr=30,
+			price_idr=30,
 		).insert()
 
 		subscription = frappe.get_doc(
@@ -139,7 +139,7 @@ class TestSubscription(FrappeTestCase):
 			document_type="Site",
 			interval="Daily",
 			price_usd=30,
-			price_inr=30,
+			price_idr=30,
 			period=30,
 		).insert()
 

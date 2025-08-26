@@ -9,7 +9,7 @@
   "enabled",
   "title",
   "pricing_section",
-  "price_inr",
+  "price_idr",
   "column_break_wnze",
   "price_usd",
   "allowed_roles_section",
@@ -33,10 +33,10 @@
    "label": "Pricing"
   },
   {
-   "fieldname": "price_inr",
+   "fieldname": "price_idr",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Price (INR)",
+   "label": "Price (IDR)",
    "reqd": 1
   },
   {

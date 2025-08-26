@@ -194,9 +194,9 @@ export default {
 		formatPlan(plan) {
 			let planDoc = getPlans().find((p) => p.name === plan);
 			if (planDoc) {
-				let india = this.$team.doc.currency === 'INR';
+				let indonesia = this.$team.doc.currency === 'IDR';
 				return this.$format.userCurrency(
-					india ? planDoc.price_inr : planDoc.price_usd,
+					indonesia ? planDoc.price_idr : planDoc.price_usd,
 				);
 			}
 			return plan;

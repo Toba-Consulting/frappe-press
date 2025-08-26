@@ -25,7 +25,7 @@ class ServerPlan(Plan):
 		memory: DF.Int
 		platform: DF.Literal["x86_64", "arm64", "amd64"]
 		premium: DF.Check
-		price_inr: DF.Currency
+		price_idr: DF.Currency
 		price_usd: DF.Currency
 		roles: DF.Table[HasRole]
 		server_type: DF.Literal["Server", "Database Server", "Proxy Server", "Self Hosted Server"]
@@ -35,7 +35,7 @@ class ServerPlan(Plan):
 
 	dashboard_fields = (
 		"title",
-		"price_inr",
+		"price_idr",
 		"price_usd",
 		"vcpu",
 		"memory",

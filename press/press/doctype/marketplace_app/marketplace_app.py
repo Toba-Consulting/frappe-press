@@ -623,7 +623,7 @@ def get_plans_for_app(
 			"name",
 			"title",
 			"enabled",
-			"price_inr",
+			"price_idr",
 			"price_usd",
 		],
 	)

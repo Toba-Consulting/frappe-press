@@ -315,8 +315,8 @@ async function verifyWithMicroChargeIfApplicable() {
 	const teamCurrency = team.doc?.currency;
 	const verifyCardsWithMicroCharge = window.verify_cards_with_micro_charge;
 	const isMicroChargeApplicable =
-		verifyCardsWithMicroCharge === 'Both INR and USD' ||
-		(verifyCardsWithMicroCharge == 'Only INR' && teamCurrency === 'INR') ||
+		verifyCardsWithMicroCharge === 'Both IDR and USD' ||
+		(verifyCardsWithMicroCharge == 'Only IDR' && teamCurrency === 'IDR') ||
 		(verifyCardsWithMicroCharge === 'Only USD' && teamCurrency === 'USD');
 	if (isMicroChargeApplicable) {
 		await _verifyWithMicroCharge();

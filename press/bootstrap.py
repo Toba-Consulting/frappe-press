@@ -305,7 +305,7 @@ def setup_plans():
 				"document_type": "Site",
 				"plan_title": plan[0],
 				"price_usd": plan[1],
-				"price_inr": plan[1] * 80,
+				"price_idr": plan[1] * 80,
 				"cpu_time_per_day": index,
 				"max_database_usage": 1024 * index,
 				"max_storage_usage": 10240 * index,

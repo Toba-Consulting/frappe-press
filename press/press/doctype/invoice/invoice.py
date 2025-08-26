@@ -173,8 +173,8 @@ class Invoice(Document):
 	def get_doc(self, doc):
 		doc.invoice_pdf = self.invoice_pdf or (self.currency == "USD" and self.get_pdf())
 		currency = frappe.get_value("Team", self.team, "currency")
-		price_field = "price_inr" if currency == "INR" else "price_usd"
-		currency_symbol = "₹" if currency == "INR" else "$"
+		price_field = "price_idr" if currency == "IDR" else "price_usd"
+		currency_symbol = "Rp" if currency == "IDR" else "$"
 
 		for item in doc["items"]:
 			if item.document_type in ("Server", "Database Server"):

@@ -563,7 +563,7 @@ export default {
 		},
 		_totalPerMonth() {
 			let currencyField =
-				this.$team.doc.currency == 'INR' ? 'price_inr' : 'price_usd';
+				this.$team.doc.currency == 'IDR' ? 'price_idr' : 'price_usd';
 			if (this.serverType === 'dedicated') {
 				return (
 					this.appServerPlan[currencyField] + this.dbServerPlan[currencyField]
@@ -641,7 +641,7 @@ export default {
 			if (!this.$team?.doc?.currency) return -1;
 			try {
 				let priceField =
-					this.$team.doc.currency === 'INR' ? 'price_inr' : 'price_usd';
+					this.$team.doc.currency === 'IDR' ? 'price_idr' : 'price_usd';
 				console.log(this.options);
 				return this.options?.storage_plan?.[priceField] || 0;
 			} catch (error) {

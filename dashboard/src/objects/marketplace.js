@@ -312,7 +312,7 @@ export default {
 					filters: (app) => {
 						return { app: app.doc.name };
 					},
-					fields: ['name', 'title', 'price_inr', 'price_usd', 'enabled'],
+					fields: ['name', 'title', 'price_idr', 'price_usd', 'enabled'],
 					columns: [
 						{
 							label: 'Title',
@@ -327,10 +327,10 @@ export default {
 							},
 						},
 						{
-							label: 'Price (INR)',
-							fieldname: 'price_inr',
+							label: 'Price (IDR)',
+							fieldname: 'price_idr',
 							format: (value) => {
-								return currency(value, 'INR');
+								return currency(value, 'IDR');
 							},
 						},
 						{

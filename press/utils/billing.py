@@ -118,40 +118,73 @@ def clear_setup_intent():
 
 
 def get_publishable_key():
-	return frappe.db.get_single_value("Press Settings", "stripe_publishable_key")
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		return frappe.db.get_single_value("Press Settings", "stripe_publishable_key")
+	elif default_gateway == "Midtrans":
+		return get_midtrans_client_key()
+	else:
+		frappe.throw(f"Unsupported payment gateway: {default_gateway}")
 
 
 def get_setup_intent(team):
 	from frappe.utils import random_string
 
-	intent = frappe.cache().hget("setup_intent", team)
-	if not intent:
-		data = frappe.db.get_value("Team", team, ["stripe_customer_id", "currency"])
-		customer_id = data[0]
-		currency = data[1]
-		stripe = get_stripe()
-		hash = random_string(10)
-		intent = stripe.SetupIntent.create(
-			customer=customer_id,
-			payment_method_types=["card"],
-			payment_method_options={
-				"card": {
-					"request_three_d_secure": "automatic",
-					"mandate_options": {
-						"reference": f"Mandate-team:{team}-{hash}",
-						"amount_type": "maximum",
-						"amount": 1500000,
-						"currency": currency.lower(),
-						"start_date": int(frappe.utils.get_timestamp()),
-						"interval": "sporadic",
-						"supported_types": ["india"],
-					},
-				}
-			},
-		)
-		frappe.cache().hset("setup_intent", team, intent)
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway == "Stripe":
+		intent = frappe.cache().hget("setup_intent", team)
+		if not intent:
+			data = frappe.db.get_value("Team", team, ["stripe_customer_id", "currency"])
+			customer_id = data[0]
+			currency = data[1]
+			stripe = get_stripe()
+			hash = random_string(10)
+			intent = stripe.SetupIntent.create(
+				customer=customer_id,
+				payment_method_types=["card"],
+				payment_method_options={
+					"card": {
+						"request_three_d_secure": "automatic",
+						"mandate_options": {
+							"reference": f"Mandate-team:{team}-{hash}",
+							"amount_type": "maximum",
+							"amount": 1500000,
+							"currency": currency.lower(),
+							"start_date": int(frappe.utils.get_timestamp()),
+							"interval": "sporadic",
+							"supported_types": ["india"],
+						},
+					}
+				},
+			)
+			frappe.cache().hset("setup_intent", team, intent)
+		return intent
+	
+	elif default_gateway == "Midtrans":
+		# For Midtrans, return client key for Snap.js integration
+		return {
+			"client_key": get_midtrans_client_key(),
+			"sandbox": frappe.db.get_single_value("Press Settings", "midtrans_sandbox") or True
+		}
+	
+	else:
+		frappe.throw(f"Unsupported payment gateway: {default_gateway}")
 
-	return intent
+
+def get_midtrans_snap_config(team):
+	"""Get Midtrans Snap configuration for frontend integration"""
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+	
+	if default_gateway != "Midtrans":
+		frappe.throw("Midtrans Snap is only available when Midtrans is set as default payment gateway in Press Settings.")
+	
+	return {
+		"client_key": get_midtrans_client_key(),
+		"sandbox": frappe.db.get_single_value("Press Settings", "midtrans_sandbox") or True,
+		"team": team
+	}
 
 
 def get_stripe():
@@ -270,3 +303,144 @@ def get_partner_external_connection(mpesa_setup):
 	# Establish connection
 	frappe.local._external_conn = FrappeClient(site_name, api_key=api_key, api_secret=api_secret)
 	return frappe.local._external_conn
+
+
+def get_midtrans():
+	"""Get Midtrans configuration and return API details"""
+	from frappe.utils.password import get_decrypted_password
+	import base64
+
+	if not hasattr(frappe.local, "press_midtrans_object"):
+		server_key = get_decrypted_password(
+			"Press Settings",
+			"Press Settings", 
+			"midtrans_server_key",
+			raise_exception=False,
+		)
+		merchant_id = frappe.db.get_single_value("Press Settings", "midtrans_merchant_id")
+
+		if not server_key:
+			frappe.throw("Setup Midtrans via Press Settings before using press.api.billing.get_midtrans")
+
+		# Create authorization header for Midtrans API
+		auth_string = f"{server_key}:"
+		auth_bytes = auth_string.encode("utf-8")
+		auth_header = base64.b64encode(auth_bytes).decode("utf-8")
+
+		# Get sandbox setting from Press Settings
+		is_sandbox = frappe.db.get_single_value("Press Settings", "midtrans_sandbox") or True
+
+		frappe.local.press_midtrans_object = {
+			"server_key": server_key,
+			"merchant_id": merchant_id,
+			"auth_header": f"Basic {auth_header}",
+			"sandbox_url": "https://api.sandbox.midtrans.com/v2",
+			"production_url": "https://api.midtrans.com/v2",
+			"snap_sandbox_url": "https://app.sandbox.midtrans.com/snap/v1/transactions",
+			"snap_production_url": "https://app.midtrans.com/snap/v1/transactions",
+			"is_sandbox": is_sandbox
+		}
+
+	return frappe.local.press_midtrans_object
+
+
+def get_midtrans_client_key():
+	"""Get Midtrans Client Key for frontend"""
+	from frappe.utils.password import get_decrypted_password
+	
+	return get_decrypted_password(
+		"Press Settings",
+		"Press Settings",
+		"midtrans_client_key",
+		raise_exception=False,
+	)
+
+
+def create_midtrans_payment(order_id, amount, currency="IDR", customer_details=None):
+	"""Create a payment transaction with Midtrans"""
+	import requests
+	
+	midtrans = get_midtrans()
+	url = f"{midtrans['sandbox_url'] if midtrans['is_sandbox'] else midtrans['production_url']}/charge"
+	
+	payload = {
+		"payment_type": "credit_card",
+		"transaction_details": {
+			"order_id": order_id,
+			"gross_amount": int(amount)
+		},
+		"credit_card": {
+			"secure": True
+		}
+	}
+	
+	if customer_details:
+		payload["customer_details"] = customer_details
+	
+	headers = {
+		"Accept": "application/json",
+		"Content-Type": "application/json",
+		"Authorization": midtrans["auth_header"]
+	}
+	
+	response = requests.post(url, json=payload, headers=headers)
+	return response.json()
+
+
+def verify_midtrans_notification(notification_json, signature_key):
+	"""Verify Midtrans notification signature"""
+	import hashlib
+	
+	midtrans = get_midtrans()
+	
+	# Create signature string
+	order_id = notification_json.get("order_id")
+	status_code = notification_json.get("status_code")
+	gross_amount = notification_json.get("gross_amount")
+	server_key = midtrans["server_key"]
+	
+	signature_string = f"{order_id}{status_code}{gross_amount}{server_key}"
+	hashed = hashlib.sha512(signature_string.encode()).hexdigest()
+	
+	return hashed == signature_key
+
+
+def create_midtrans_snap_token(order_id, amount, currency="IDR", customer_details=None, item_details=None):
+	"""Create Snap token for Midtrans payment UI"""
+	import requests
+	
+	midtrans = get_midtrans()
+	url = f"{midtrans['snap_sandbox_url'] if midtrans['is_sandbox'] else midtrans['snap_production_url']}"
+	
+	payload = {
+		"transaction_details": {
+			"order_id": order_id,
+			"gross_amount": format_midtrans_money(amount, currency)
+		}
+	}
+	
+	if customer_details:
+		payload["customer_details"] = customer_details
+	
+	if item_details:
+		payload["item_details"] = item_details
+	
+	headers = {
+		"Accept": "application/json",
+		"Content-Type": "application/json", 
+		"Authorization": midtrans["auth_header"]
+	}
+	
+	response = requests.post(url, json=payload, headers=headers)
+	return response.json()
+
+
+def format_midtrans_money(amount, currency="IDR"):
+	"""Format money for Midtrans (convert to smallest currency unit)"""
+	# Midtrans expects amount in smallest currency unit (e.g., cents for USD, rupiah for IDR)
+	if currency == "USD":
+		return int(amount * 100)  # Convert to cents
+	elif currency == "IDR":
+		return int(amount)  # IDR is already in smallest unit
+	else:
+		return int(amount * 100)  # Default to cents

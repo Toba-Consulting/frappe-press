@@ -28,7 +28,7 @@
 								<template v-if="plan.label">{{ plan.label }}</template>
 								<template v-else>
 									{{ $format.planTitle(plan) }}
-									<span v-if="plan.price_inr" class="text-gray-700">/mo</span>
+									<span v-if="plan.price_idr" class="text-gray-700">/mo</span>
 								</template>
 							</span>
 							<Tooltip text="Product support included">
@@ -43,12 +43,12 @@
 						<template v-if="plan.sublabel">
 							{{ plan.sublabel }}
 						</template>
-						<template v-else-if="plan.price_inr || plan.price_usd">
+						<template v-else-if="plan.price_idr || plan.price_usd">
 							{{
 								$format.userCurrency(
 									$format.pricePerDay(
-										$team.doc.currency === 'INR'
-											? plan.price_inr
+										$team.doc.currency === 'IDR'
+											? plan.price_idr
 											: plan.price_usd,
 									),
 								)

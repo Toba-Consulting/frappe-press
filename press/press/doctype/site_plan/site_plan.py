@@ -18,7 +18,6 @@ class SitePlan(Plan):
 	if TYPE_CHECKING:
 		from frappe.core.doctype.has_role.has_role import HasRole
 		from frappe.types import DF
-
 		from press.press.doctype.site_plan_allowed_app.site_plan_allowed_app import SitePlanAllowedApp
 		from press.press.doctype.site_plan_release_group.site_plan_release_group import SitePlanReleaseGroup
 
@@ -42,7 +41,7 @@ class SitePlan(Plan):
 		monitor_access: DF.Check
 		offsite_backups: DF.Check
 		plan_title: DF.Data | None
-		price_inr: DF.Currency
+		price_idr: DF.Currency
 		price_usd: DF.Currency
 		private_benches: DF.Check
 		release_groups: DF.Table[SitePlanReleaseGroup]
@@ -56,7 +55,7 @@ class SitePlan(Plan):
 		"plan_title",
 		"document_type",
 		"document_name",
-		"price_inr",
+		"price_idr",
 		"price_usd",
 		"period",
 		"cpu_time_per_day",
@@ -70,7 +69,7 @@ class SitePlan(Plan):
 	)
 
 	def get_doc(self, doc):
-		doc["price_per_day_inr"] = self.get_price_per_day("INR")
+		doc["price_per_day_idr"] = self.get_price_per_day("IDR")
 		doc["price_per_day_usd"] = self.get_price_per_day("USD")
 		return doc
 

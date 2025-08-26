@@ -56,8 +56,8 @@ export function plural(number, singular, plural) {
 export function planTitle(plan) {
 	if (plan === undefined) return;
 	const $team = getTeam();
-	const india = $team.doc?.currency === 'INR';
-	const priceField = india ? 'price_inr' : 'price_usd';
+	const indonesia = $team.doc?.currency === 'IDR';
+	const priceField = indonesia ? 'price_idr' : 'price_usd';
 	const price =
 		plan?.block_monthly == 1 ? plan[priceField] * 12 : plan[priceField];
 	return price > 0 ? `${userCurrency(price, 0)}` : plan.plan_title;

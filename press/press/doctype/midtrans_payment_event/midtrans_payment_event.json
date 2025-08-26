@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "invoice",
+  "team",
+  "event_type",
+  "payment_status",
+  "transaction_status",
+  "midtrans_transaction_object",
+  "midtrans_transaction_id",
+  "midtrans_order_id",
+  "payment_type"
+ ],
+ "fields": [
+  {
+   "fieldname": "invoice",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Invoice",
+   "options": "Invoice"
+  },
+  {
+   "fieldname": "team",
+   "fieldtype": "Link",
+   "label": "Team",
+   "options": "Team"
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "Transaction\nCapture\nSettle\nCancel\nDeny\nExpire",
+   "reqd": 1
+  },
+  {
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Payment Status",
+   "options": "Paid\nUnpaid\nPending"
+  },
+  {
+   "fieldname": "transaction_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Transaction Status",
+   "options": "capture\nsettle\npending\ndeny\ncancel\nexpire\nfailure"
+  },
+  {
+   "fieldname": "midtrans_transaction_object",
+   "fieldtype": "Code",
+   "label": "Midtrans Transaction Object",
+   "read_only": 1
+  },
+  {
+   "fieldname": "midtrans_transaction_id",
+   "fieldtype": "Data",
+   "label": "Midtrans Transaction ID"
+  },
+  {
+   "fieldname": "midtrans_order_id",
+   "fieldtype": "Data",
+   "label": "Midtrans Order ID"
+  },
+  {
+   "fieldname": "payment_type",
+   "fieldtype": "Data",
+   "label": "Payment Type"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Press",
+ "name": "Midtrans Payment Event",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "invoice",
+ "track_changes": 1
+}

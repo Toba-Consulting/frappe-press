@@ -31,7 +31,7 @@ from press.utils.test import foreground_enqueue_doc
 def create_test_server_plan(
 	document_type: str,
 	price_usd: float = 10.0,
-	price_inr: float = 750.0,
+	price_idr: float = 750.0,
 	title: str | None = None,
 	plan_name: str | None = None,
 ):
@@ -44,7 +44,7 @@ def create_test_server_plan(
 			"server_type": document_type,
 			"name": plan_name,
 			"title": title,
-			"price_inr": price_inr,
+			"price_idr": price_idr,
 			"price_usd": price_usd,
 			"enabled": 1,
 			"instance_type": "t2.micro",

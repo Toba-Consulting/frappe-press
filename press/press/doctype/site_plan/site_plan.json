@@ -13,7 +13,7 @@
   "plan_title",
   "interval",
   "column_break_5",
-  "price_inr",
+  "price_idr",
   "price_usd",
   "allow_downgrading_from_other_plan",
   "legacy_plan",
@@ -75,14 +75,6 @@
   {
    "fieldname": "column_break_5",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "price_inr",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Price (INR)",
-   "options": "INR",
-   "reqd": 1
   },
   {
    "fieldname": "price_usd",
@@ -244,12 +236,20 @@
    "fieldname": "legacy_plan",
    "fieldtype": "Check",
    "label": "Legacy Plan"
+  },
+  {
+   "fieldname": "price_idr",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price (IDR)",
+   "options": "INR",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 10:48:08.852441",
+ "modified": "2025-08-26 11:32:16.046420",
  "modified_by": "Administrator",
  "module": "Press",
  "name": "Site Plan",

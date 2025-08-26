@@ -10,7 +10,28 @@ from press.press.doctype.site_plan.plan import Plan
 
 
 class MarketplaceAppPlan(Plan):
-	dashboard_fields = ["app", "name", "title", "price_inr", "price_usd", "enabled"]
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.core.doctype.has_role.has_role import HasRole
+		from frappe.types import DF
+		from press.marketplace.doctype.app_plan_version.app_plan_version import AppPlanVersion
+		from press.press.doctype.plan_feature.plan_feature import PlanFeature
+
+		app: DF.Link
+		available_on_versions: DF.Table[AppPlanVersion]
+		enabled: DF.Check
+		features: DF.Table[PlanFeature]
+		interval: DF.Literal["Daily", "Monthly", "Yearly"]
+		price_idr: DF.Currency
+		price_usd: DF.Currency
+		roles: DF.Table[HasRole]
+		title: DF.Data | None
+	# end: auto-generated types
+	dashboard_fields = ["app", "name", "title", "price_idr", "price_usd", "enabled"]
 
 	@staticmethod
 	def get_list_query(query):
@@ -27,7 +48,7 @@ class MarketplaceAppPlan(Plan):
 		self.update_marketplace_app_subscription_type()
 
 	def update_marketplace_app_subscription_type(self):
-		if cint(self.price_inr) > 0 or cint(self.price_usd) > 0:
+		if cint(self.price_idr) > 0 or cint(self.price_usd) > 0:
 			frappe.db.set_value(
 				"Marketplace App",
 				self.app,

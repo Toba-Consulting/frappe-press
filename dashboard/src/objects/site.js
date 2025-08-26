@@ -71,7 +71,7 @@ export default {
 		fields: [
 			'plan.plan_title as plan_title',
 			'plan.price_usd as price_usd',
-			'plan.price_inr as price_inr',
+			'plan.price_idr as price_idr',
 			'group.title as group_title',
 			'group.public as group_public',
 			'group.team as group_team',
@@ -154,9 +154,9 @@ export default {
 					}
 					const $team = getTeam();
 					if (row.price_usd > 0) {
-						const india = $team.doc?.currency === 'INR';
+						const indonesia = $team.doc?.currency === 'IDR';
 						const formattedValue = userCurrency(
-							india ? row.price_inr : row.price_usd,
+							indonesia ? row.price_idr : row.price_usd,
 							0,
 						);
 						return `${formattedValue}/mo`;

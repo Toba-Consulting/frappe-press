@@ -88,7 +88,7 @@ def get_product_sites_of_user(user: str):
 			"trial_end_date",
 			"plan.plan_title as plan_title",
 			"plan.price_usd as price_usd",
-			"plan.price_inr as price_inr",
+			"plan.price_idr as price_idr",
 			"host_name",
 		],
 	)

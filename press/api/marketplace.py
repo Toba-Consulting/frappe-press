@@ -57,8 +57,8 @@ def get_install_app_options(marketplace_app: str) -> dict:
 
 	private_site_plan = frappe.db.get_value(
 		"Site Plan",
-		{"private_benches": 1, "document_type": "Site", "price_inr": ["!=", 0]},
-		order_by="price_inr asc",
+		{"private_benches": 1, "document_type": "Site", "price_idr": ["!=", 0]},
+		order_by="price_idr asc",
 	)
 
 	public_site_plan = frappe.db.get_value(
@@ -66,10 +66,10 @@ def get_install_app_options(marketplace_app: str) -> dict:
 		{
 			"private_benches": 0,
 			"document_type": "Site",
-			"price_inr": ["!=", 0],
+			"price_idr": ["!=", 0],
 			"name": ["not in", restricted_site_plans],
 		},
-		order_by="price_inr asc",
+		order_by="price_idr asc",
 	)
 
 	clusters = private_groups = []
@@ -148,7 +148,7 @@ def get_install_app_options(marketplace_app: str) -> dict:
 
 	app_plans = get_plans_for_app(marketplace_app)
 
-	if not [plan for plan in app_plans if plan["price_inr"] > 0 or plan["price_usd"] > 0]:
+	if not [plan for plan in app_plans if plan["price_idr"] > 0 or plan["price_usd"] > 0]:
 		app_plans = []
 
 	return {
@@ -876,7 +876,7 @@ def get_marketplace_subscriptions_for_site(site: str):
 		subscription.plan_info = frappe.db.get_value(
 			"Marketplace App Plan",
 			subscription.plan,
-			["price_usd", "price_inr"],
+			["price_usd", "price_idr"],
 			as_dict=True,
 		)
 		subscription.is_free = frappe.db.get_value(
@@ -1033,7 +1033,7 @@ def get_subscriptions_list(marketplace_app: str) -> list:
 			team.user.as_("user_contact"),
 			app_sub.plan.as_("app_plan"),
 			app_plan.price_usd.as_("price_usd"),
-			app_plan.price_inr.as_("price_inr"),
+			app_plan.price_idr.as_("price_idr"),
 			app_sub.enabled,
 		)
 		.orderby(app_sub.enabled)
@@ -1052,7 +1052,7 @@ def create_app_plan(marketplace_app: str, plan_data: dict):
 			"doctype": "Marketplace App Plan",
 			"app": marketplace_app,
 			"title": plan_data.get("title"),
-			"price_inr": plan_data.get("price_inr"),
+			"price_idr": plan_data.get("price_idr"),
 			"price_usd": plan_data.get("price_usd"),
 		}
 	)
@@ -1080,7 +1080,7 @@ def update_app_plan(app_plan_name: str, updated_plan_data: dict):
 	)
 
 	if (
-		updated_plan_data["price_inr"] != app_plan_doc.price_inr
+		updated_plan_data["price_idr"] != app_plan_doc.price_idr
 		or updated_plan_data["price_usd"] != app_plan_doc.price_usd
 	) and no_of_active_subscriptions > 0:
 		# Someone is on this plan, don't change price for the plan,
@@ -1090,7 +1090,7 @@ def update_app_plan(app_plan_name: str, updated_plan_data: dict):
 
 	app_plan_doc.update(
 		{
-			"price_inr": updated_plan_data.get("price_inr"),
+			"price_idr": updated_plan_data.get("price_idr"),
 			"price_usd": updated_plan_data.get("price_usd"),
 			"title": updated_plan_data.get("title", app_plan_doc.title),
 		}
