@@ -13,12 +13,12 @@
 			>
 				<template #prefix>
 					<div class="grid w-4 place-items-center text-sm text-gray-700">
-						{{ team.doc.currency === 'INR' ? '₹' : '$' }}
+						{{ team.doc.currency === 'IDR' ? 'Rp' : '$' }}
 					</div>
 				</template>
 			</FormControl>
 			<FormControl
-				v-if="team.doc.currency === 'INR'"
+				v-if="team.doc.currency === 'IDR'"
 				:label="`Total Amount + GST (${
 					team.doc?.billing_info.gst_percentage * 100
 				}%)`"
@@ -30,7 +30,7 @@
 			>
 				<template #prefix>
 					<div class="grid w-4 place-items-center text-sm text-gray-700">
-						{{ team.doc.currency === 'INR' ? '₹' : '$' }}
+						{{ team.doc.currency === 'IDR' ? 'Rp' : '$' }}
 					</div>
 				</template>
 			</FormControl>

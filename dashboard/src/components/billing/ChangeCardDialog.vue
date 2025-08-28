@@ -34,7 +34,7 @@
 									Expiry
 									{{
 										card.expiry_month < 10
-											? `0${card.expiry_month}`
+											? `${card.expiry_month}`
 											: card.expiry_month
 									}}/{{ card.expiry_year }}
 								</div>

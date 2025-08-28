@@ -66,6 +66,32 @@ class MidtransPaymentMethod(Document):
 		capture("removed_card", "fc_signup")
 
 	@dashboard_whitelist()
+	def set_default(self):
+		"""Set this payment method as the default for the team"""
+		try:
+			# Set all other payment methods for this team to non-default
+			frappe.db.sql(
+				"""
+				UPDATE `tabMidtrans Payment Method` 
+				SET is_default = 0 
+				WHERE team = %s AND name != %s
+			""",
+				[self.team, self.name],
+			)
+			
+			# Set this payment method as default
+			self.is_default = 1
+			self.save(ignore_permissions=True)
+			
+			# Set this payment method as default on Team doctype (similar to Stripe behavior)
+			frappe.db.set_value("Team", self.team, "default_payment_method", self.name)
+			
+			return "Payment method set as default successfully"
+		except Exception as e:
+			log_error("Midtrans Payment Method Set Default Error", payment_method=self.name, error=str(e))
+			frappe.throw(f"Failed to set payment method as default: {str(e)}")
+
+	@dashboard_whitelist()
 	def delete(self):
 		try:
 			midtrans = get_midtrans()

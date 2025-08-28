@@ -55,7 +55,7 @@ class Subscription(Document):
 		Subscription = frappe.qb.DocType("Subscription")
 		UsageRecord = frappe.qb.DocType("Usage Record")
 		Plan = frappe.qb.DocType("Marketplace App Plan")
-		price_field = Plan.price_idr if frappe.local.team().currency == "INR" else Plan.price_usd
+		price_field = Plan.price_idr if frappe.local.team().currency == "IDR" else Plan.price_usd
 		filters = list_args.get("filters", {})
 
 		query = (

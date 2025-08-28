@@ -11,12 +11,12 @@
 		>
 			<template #prefix>
 				<div class="grid w-4 place-items-center text-sm text-gray-700">
-					{{ $team.doc.currency === 'INR' ? '₹' : '$' }}
+					{{ $team.doc.currency === 'IDR' ? 'Rp' : '$' }}
 				</div>
 			</template>
 		</FormControl>
 		<FormControl
-			v-if="$team.doc.currency === 'INR'"
+			v-if="$team.doc.currency === 'IDR'"
 			:label="`Total Amount + GST (${
 				$team.doc?.billing_info.gst_percentage * 100
 			}%)`"
@@ -28,7 +28,7 @@
 		>
 			<template #prefix>
 				<div class="grid w-4 place-items-center text-sm text-gray-700">
-					{{ $team.doc.currency === 'INR' ? '₹' : '$' }}
+					{{ $team.doc.currency === 'IDR' ? 'Rp' : '$' }}
 				</div>
 			</template>
 		</FormControl>
@@ -38,7 +38,7 @@
 		<div class="text-xs text-gray-600">Select Payment Gateway</div>
 		<div class="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
 			<button
-				v-if="$team.doc.currency === 'INR' || $team.doc.razorpay_enabled"
+				v-if="$team.doc.currency === 'IDR' || $team.doc.razorpay_enabled"
 				@click="paymentGateway = 'Razorpay'"
 				label="Razorpay"
 				class="flex h-10 items-center justify-center rounded border"

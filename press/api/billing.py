@@ -153,8 +153,9 @@ def get_default_payment_gateway_config():
 		}
 
 
+
 @frappe.whitelist()
-def create_midtrans_snap_payment(amount, currency="IDR", invoice_id=None):
+def create_midtrans_snap_payment(amount, currency="IDR", invoice_id=None, register_card=False):
 	"""Create Midtrans Snap token for payment UI"""
 	team = get_current_team()
 	
@@ -268,7 +269,263 @@ def create_midtrans_direct_payment(payment_method_id, amount, currency="IDR", in
 def get_midtrans_payment_methods():
 	"""Get all Midtrans payment methods for current team"""
 	from press.press.doctype.midtrans_payment_method.midtrans_payment_method import get_payment_methods
-	return get_payment_methods()
+	team = get_current_team()
+	
+	# Add debugging
+	frappe.log_error("Get Payment Methods", f"Called for team: {team}")
+	
+	methods = get_payment_methods()
+	frappe.log_error("Payment Methods Result", f"Found {len(methods)} methods: {methods}")
+	
+	return methods
+
+
+@frappe.whitelist()
+def register_midtrans_card(card_number, card_exp_month, card_exp_year, card_cvv, card_holder_name, brand=None, billing_address=None):
+	"""Register a card directly with Midtrans using card tokenization"""
+	team = get_current_team()
+	
+	try:
+		frappe.log_error("Card Registration Start", f"Team: {team}")
+		
+		# Call Midtrans tokenization API
+		token_response = create_midtrans_card_token(
+			card_number=card_number,
+			card_exp_month=card_exp_month,
+			card_exp_year=card_exp_year,
+			card_cvv=card_cvv,
+			card_holder_name=card_holder_name
+		)
+		
+		frappe.log_error("Token Response", str(token_response))
+		
+		if not token_response.get("success"):
+			return {
+				"success": False,
+				"error": token_response.get("error", ["Failed to tokenize card"])
+			}
+		
+		# Extract card details and token
+		card_token = token_response["token_id"]
+		card_details = token_response.get("card_details", {})
+		
+		frappe.log_error("Card Token", f"Token: {card_token[:20]}... Details: {card_details}")
+		
+		# Save the card token to our database
+		frappe.log_error("Creating Payment Method", "Starting document creation")
+		
+		# Ensure field lengths are within limits and valid values
+		name_on_card = (card_holder_name or "")[:140]  # Data field default length
+		
+		# Extract last_4 from card_details or card_number
+		if "last_4" in card_details:
+			last_4 = str(card_details["last_4"])[:4]
+		else:
+			# Extract from card_number if not in card_details
+			last_4 = str(card_number)[-4:]
+			
+		expiry_month = str(card_exp_month).zfill(2)[:2]  # 2-digit format for database
+		expiry_year = str(card_exp_year).zfill(2)[:2]    # 2-digit format for database (YY)
+		
+		# Use frontend-detected brand if provided, otherwise use Midtrans brand
+		if brand:
+			brand = str(brand)[:140]  # Use the frontend-detected brand
+		else:
+			brand = str(card_details.get("brand", "Unknown"))[:140]  # Fall back to Midtrans brand
+		
+		# card_type must be exactly 'credit' or 'debit' as per DocType definition
+		raw_card_type = str(card_details.get("card_type", "credit")).lower()
+		if raw_card_type in ["debit"]:
+			card_type = "debit"
+		else:
+			card_type = "credit"  # Default to credit
+			
+		token = str(card_token)[:140]  # Data field default length
+		
+		frappe.log_error("Field Values", f"name: {name_on_card}, last_4: {last_4}, month: {expiry_month}, year: {expiry_year}, brand: {brand}, type: {card_type}")
+		
+		payment_method = frappe.get_doc({
+			"doctype": "Midtrans Payment Method",
+			"team": team,
+			"name_on_card": name_on_card,
+			"last_4": last_4,
+			"expiry_month": expiry_month,
+			"expiry_year": expiry_year,
+			"brand": brand,
+			"card_type": card_type,
+			"midtrans_token": token,
+			"is_default": 0
+		})
+		
+		# Insert the payment method first to get the name
+		frappe.log_error("Database Insert", "About to insert payment method")
+		try:
+			payment_method.insert(ignore_permissions=True)
+			frappe.log_error("Insert Success", f"Name: {payment_method.name}")
+			
+			# If this is the first payment method for the team, set it as default in Team doctype
+			existing_methods = frappe.db.count("Midtrans Payment Method", {"team": team})
+			if existing_methods == 1:  # This is the first card
+				team_doc = frappe.get_doc("Team", team)
+				team_doc.default_payment_method = payment_method.name
+				team_doc.save(ignore_permissions=True)
+				frappe.log_error("Team Default Set", f"Set {payment_method.name} as default for team {team}")
+			
+			# Commit the transaction to ensure it's saved
+			frappe.db.commit()
+			
+			# Verify it was saved by querying it back
+			saved_method = frappe.get_doc("Midtrans Payment Method", payment_method.name)
+			frappe.log_error("Verification", f"Saved payment method: {saved_method.name}, Team: {saved_method.team}, Last 4: {saved_method.last_4}")
+			
+		except Exception as insert_error:
+			frappe.log_error("Insert Failed", str(insert_error))
+			raise
+		
+		# Only create billing address if team doesn't already have one
+		team_doc = frappe.get_doc("Team", team)
+		
+		if billing_address and not team_doc.billing_address:
+			frappe.log_error("Creating Address", "Creating billing address for first payment method")
+			# Create address after payment method is saved and has a name
+			address_doc = frappe.get_doc({
+				"doctype": "Address",
+				"address_title": f"{team} Billing Address",
+				"address_type": "Billing",
+				"address_line1": billing_address.get("address_line1"),
+				"address_line2": billing_address.get("address_line2"),
+				"city": billing_address.get("city"),
+				"state": billing_address.get("state"),
+				"pincode": billing_address.get("pincode"),
+				"country": billing_address.get("country"),
+			})
+			address_doc.append("links", {
+				"link_doctype": "Midtrans Payment Method",
+				"link_name": payment_method.name  # Now payment_method.name exists
+			})
+			address_doc.insert(ignore_permissions=True)
+			
+			# Update team's billing_address field
+			team_doc.billing_address = address_doc.name
+			team_doc.save(ignore_permissions=True)
+		elif billing_address and team_doc.billing_address:
+			frappe.log_error("Skip Address Creation", f"Skipping address creation - team already has billing address: {team_doc.billing_address}")
+		
+		team_doc.country = billing_address.get("country")
+		team_doc.payment_method = "Card"
+		team_doc.save(ignore_permissions=True)
+
+		return {
+			"success": True,
+			"payment_method_id": payment_method.name,
+			"is_default": payment_method.is_default
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Failed to register Midtrans card: {str(e)}")
+		return {
+			"success": False,
+			"error": [f"Failed to register card: {str(e)}"]
+		}
+
+
+def create_midtrans_card_token(card_number, card_exp_month, card_exp_year, card_cvv=None, card_holder_name=None):
+	"""Create card token using Midtrans Card Registration API"""
+	import requests
+	import base64
+	
+	try:
+		midtrans = get_midtrans()
+		client_key = get_midtrans_client_key()
+		
+		if not client_key:
+			return {
+				"success": False,
+				"error": ["Midtrans client key not configured"]
+			}
+		
+		# Create authorization header with client_key + ":" encoded in base64
+		auth_string = f"{client_key}:"
+		auth_bytes = auth_string.encode("utf-8")
+		auth_header = f"Basic {base64.b64encode(auth_bytes).decode('utf-8')}"
+		
+		# Use correct Midtrans card registration endpoint
+		base_url = "https://api.sandbox.midtrans.com" if midtrans['is_sandbox'] else "https://api.midtrans.com"
+		url = f"{base_url}/v2/card/register"
+		
+		# Parameters for GET request as per Midtrans docs
+		# Convert YY to YYYY format for card_exp_year as required by Midtrans
+		year_str = str(card_exp_year).zfill(2)
+		if len(year_str) == 2:
+			# Convert YY to YYYY (e.g., "26" becomes "2026", "05" becomes "2005" but should be "2025")
+			year_int = int(year_str)
+			current_year = 2025  # Current year for reference
+			
+			# If year is less than current year's last 2 digits, assume next century
+			# Otherwise assume current century
+			if year_int < (current_year % 100):
+				full_year = 2100 + year_int  # Next century
+			else:
+				full_year = 2000 + year_int  # Current century
+		else:
+			# Already 4-digit year
+			full_year = int(year_str)
+			
+		params = {
+			"card_number": card_number,
+			"card_exp_month": str(card_exp_month).zfill(2),  # Ensure 2-digit format (MM)
+			"card_exp_year": str(full_year),  # Ensure 4-digit format (YYYY)
+			"client_key": client_key  # Include client_key in parameters as well
+		}
+		
+		print(f"DEBUG:::: params sent {params}")
+
+		# Headers with proper authorization
+		headers = {
+			"Accept": "application/json",
+			"Authorization": auth_header,
+			"Content-Type": "application/json"
+		}
+		
+		frappe.log_error("Midtrans API Call", f"URL: {url}\nParams: {params}\nAuth: {auth_header[:30]}...")
+		
+		# Use GET method as per Midtrans documentation
+		response = requests.get(url, params=params, headers=headers)
+		
+		frappe.log_error("Midtrans API Response", f"Status: {response.status_code}\nContent: {response.text}")
+		
+		result = response.json()
+		
+		print(f"DEBUG :::: response result {result}")
+
+		if response.status_code == 200 and "saved_token_id" in result:
+			# Extract card details from Midtrans response
+			masked_card = result.get("masked_card", "")
+			
+			return {
+				"success": True,
+				"token_id": result["saved_token_id"],
+				"card_details": {
+					"last_4": masked_card[-4:] if masked_card else card_number[-4:],
+					"brand": result.get("card_type", "Unknown"),
+					"card_type": "credit",  # Default to credit
+					"masked_card": masked_card,
+					"transaction_id": result.get("transaction_id", "")
+				}
+			}
+		else:
+			frappe.log_error("Midtrans Registration Failed", str(result))
+			return {
+				"success": False,
+				"error": [result.get("error_messages", [result.get("error_message", "Card registration failed")])]
+			}
+			
+	except Exception as e:
+		frappe.log_error("Midtrans API Error", str(e))
+		return {
+			"success": False,
+			"error": [f"Card registration failed: {str(e)}"]
+		}
 
 
 @frappe.whitelist()
@@ -852,20 +1109,43 @@ def get_payment_methods():
 
 @frappe.whitelist()
 def set_as_default(name):
-	payment_method = frappe.get_doc("Stripe Payment Method", {"name": name, "team": get_current_team()})
+	"""Set payment method as default based on gateway type"""
+	team = get_current_team()
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway")
+	
+	if default_gateway == "Midtrans":
+		payment_method = frappe.get_doc("Midtrans Payment Method", {"name": name, "team": team})
+	else:
+		payment_method = frappe.get_doc("Stripe Payment Method", {"name": name, "team": team})
+	
 	payment_method.set_default()
 
 
 @frappe.whitelist()
 def remove_payment_method(name):
+	"""Remove payment method based on default payment gateway"""
 	team = get_current_team()
-	payment_method_count = frappe.db.count("Stripe Payment Method", {"team": team})
-
-	if has_unsettled_invoices(team) and payment_method_count == 1:
-		return "Unpaid Invoices"
-
-	payment_method = frappe.get_doc("Stripe Payment Method", {"name": name, "team": team})
-	payment_method.delete()
+	default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway")
+	
+	if default_gateway == "Midtrans":
+		# Handle Midtrans payment method removal
+		payment_method_count = frappe.db.count("Midtrans Payment Method", {"team": team})
+		
+		if has_unsettled_invoices(team) and payment_method_count == 1:
+			return "Unpaid Invoices"
+		
+		payment_method = frappe.get_doc("Midtrans Payment Method", {"name": name, "team": team})
+		payment_method.delete()
+	else:
+		# Handle Stripe payment method removal (default behavior)
+		payment_method_count = frappe.db.count("Stripe Payment Method", {"team": team})
+		
+		if has_unsettled_invoices(team) and payment_method_count == 1:
+			return "Unpaid Invoices"
+		
+		payment_method = frappe.get_doc("Stripe Payment Method", {"name": name, "team": team})
+		payment_method.delete()
+	
 	return None
 
 

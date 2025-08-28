@@ -361,7 +361,7 @@ export default {
 						confirmDialog({
 							title: 'Clear Unpaid Invoice',
 							message: `You have an unpaid invoice of ${
-								invoice.currency === 'INR' ? '₹' : '$'
+								invoice.currency === 'IDr' ? 'Rp' : '$'
 							} ${
 								invoice.amount_due
 							}. Please clear it before disabling the account.`,

@@ -34,7 +34,6 @@ class Team(Document):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
-
 		from press.press.doctype.child_team_member.child_team_member import ChildTeamMember
 		from press.press.doctype.communication_email.communication_email import CommunicationEmail
 		from press.press.doctype.invoice_discount.invoice_discount import InvoiceDiscount
@@ -158,20 +157,48 @@ class Team(Document):
 		doc.billing_details = self.billing_details()
 		doc.trial_sites = self.get_trial_sites()
 		doc.pending_site_request = self.get_pending_saas_site_request()
-		doc.payment_method = frappe.db.get_value(
-			"Stripe Payment Method",
-			{"team": self.name, "name": self.default_payment_method},
-			[
-				"name",
-				"last_4",
-				"name_on_card",
-				"expiry_month",
-				"expiry_year",
-				"brand",
-				"stripe_mandate_id",
-			],
-			as_dict=True,
-		)
+		doc.payment_method = self.get_payment_method_info()
+
+	def get_payment_method_info(self):
+		"""Get payment method info based on default payment gateway from Press Settings"""
+		if not self.default_payment_method:
+			return None
+			
+		# Get the default payment gateway from Press Settings
+		default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway")
+		
+		if default_gateway == "Midtrans":
+			# Query Midtrans Payment Method table
+			return frappe.db.get_value(
+				"Midtrans Payment Method",
+				{"team": self.name, "is_default": 1},  # Get the default Midtrans card
+				[
+					"name",
+					"last_4",
+					"name_on_card",
+					"expiry_month",
+					"expiry_year",
+					"brand",
+					"midtrans_token",
+				],
+				as_dict=True,
+			)
+		else:
+			# Default to Stripe Payment Method table
+			return frappe.db.get_value(
+				"Stripe Payment Method",
+				{"team": self.name, "name": self.default_payment_method},
+				[
+					"name",
+					"last_4",
+					"name_on_card",
+					"expiry_month",
+					"expiry_year",
+					"brand",
+					"stripe_mandate_id",
+				],
+				as_dict=True,
+			)
 
 	def onload(self):
 		load_address_and_contact(self)
@@ -442,13 +469,23 @@ class Team(Document):
 		if not self.is_new() and not self.default_payment_method:
 			# if default payment method is unset
 			# then set the is_default field for Stripe Payment Method to 0
-			payment_methods = frappe.db.get_list(
-				"Stripe Payment Method", {"team": self.name, "is_default": 1}
-			)
-			for pm in payment_methods:
-				doc = frappe.get_doc("Stripe Payment Method", pm.name)
-				doc.is_default = 0
-				doc.save()
+			default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+			if default_gateway == "Stripe":
+				payment_methods = frappe.db.get_list(
+					"Stripe Payment Method", {"team": self.name, "is_default": 1}
+				)
+				for pm in payment_methods:
+					doc = frappe.get_doc("Stripe Payment Method", pm.name)
+					doc.is_default = 0
+					doc.save()
+			else:
+				payment_methods = frappe.db.get_list(
+					"Midtrans Payment Method", {"team": self.name, "is_default": 1}
+				)
+				for pm in payment_methods:
+					doc = frappe.get_doc("Midtrans Payment Method", pm.name)
+					doc.is_default = 0
+					doc.save()
 
 		# Telemetry: Payment Mode Changed Event (Only for teams which have came through FC Signup and not via invite)
 		if self.has_value_changed("payment_mode") and self.payment_mode and self.account_request:
@@ -773,21 +810,43 @@ class Team(Document):
 		return doc
 
 	def get_payment_methods(self):
-		return frappe.db.get_all(
-			"Stripe Payment Method",
-			{"team": self.name},
-			[
-				"name",
-				"last_4",
-				"name_on_card",
-				"expiry_month",
-				"expiry_year",
-				"brand",
-				"is_default",
-				"creation",
-			],
-			order_by="creation desc",
-		)
+		"""Get payment methods based on default payment gateway from Press Settings"""
+		default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway")
+		
+		if default_gateway == "Midtrans":
+			# Return Midtrans payment methods
+			return frappe.db.get_all(
+				"Midtrans Payment Method",
+				{"team": self.name},
+				[
+					"name",
+					"last_4",
+					"name_on_card",
+					"expiry_month",
+					"expiry_year",
+					"brand",
+					"is_default",
+					"creation",
+				],
+				order_by="creation desc",
+			)
+		else:
+			# Default to Stripe payment methods
+			return frappe.db.get_all(
+				"Stripe Payment Method",
+				{"team": self.name},
+				[
+					"name",
+					"last_4",
+					"name_on_card",
+					"expiry_month",
+					"expiry_year",
+					"brand",
+					"is_default",
+					"creation",
+				],
+				order_by="creation desc",
+			)
 
 	def get_past_invoices(self):
 		invoices = frappe.db.get_all(
