@@ -51,6 +51,7 @@ class Team(Document):
 		communication_emails: DF.Table[CommunicationEmail]
 		company_logo: DF.Attach | None
 		country: DF.Link | None
+		credits_count_transaction: DF.Data | None
 		currency: DF.Link | None
 		customers: DF.SmallText | None
 		database_access_enabled: DF.Check
@@ -1625,8 +1626,8 @@ def has_unsettled_invoices(team):
 
 	currency = frappe.db.get_value("Team", team, "currency")
 	minimum_amount = 5
-	if currency == "INR":
-		minimum_amount = 450
+	if currency == "IDR":
+		minimum_amount = 100000
 
 	data = frappe.get_all(
 		"Invoice",

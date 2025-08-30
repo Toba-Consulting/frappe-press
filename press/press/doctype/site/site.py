@@ -2562,6 +2562,7 @@ class Site(Document, TagHelpers):
 			{
 				"doctype": "Site Plan Change",
 				"site": self.name,
+				"team": self.team,
 				"from_plan": "",
 				"to_plan": plan,
 				"type": "Initial Plan",

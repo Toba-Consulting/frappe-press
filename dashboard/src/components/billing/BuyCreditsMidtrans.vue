@@ -1,11 +1,8 @@
 <template>
 	<div>
-		<div v-if="step == 'Setting up Midtrans'" class="mt-8 flex justify-center">
-			<Spinner class="h-4 w-4 text-gray-700" />
-		</div>
 		<ErrorMessage
 			class="mt-2"
-			:message="createPaymentIntent.error || errorMessage"
+			:message="errorMessage"
 		/>
 		<div class="mt-8">
 			<Button
@@ -13,9 +10,8 @@
 				class="w-full"
 				size="md"
 				variant="solid"
-				label="Proceed to payment using Midtrans"
-				:loading="createPaymentIntent.loading"
-				@click="createPaymentIntent.submit()"
+				label="Proceed to payment"
+				@click="openPaymentMethodDialog"
 			/>
 			<Button
 				v-else-if="step == 'Processing Payment'"
@@ -26,14 +22,55 @@
 				:loading="true"
 			/>
 		</div>
+
+		<!-- Payment Method Selection Dialog -->
+		<MidtransPaymentMethodDialog
+			v-model="showPaymentMethodDialog"
+			:amount="amount"
+			@methodSelected="onPaymentMethodSelected"
+		/>
+
+		<!-- Bank Selection Dialog -->
+		<MidtransBankSelectionDialog
+			v-model="showBankSelectionDialog"
+			:amount="amount"
+			@bankSelected="onBankSelected"
+			@goBack="goBackToPaymentMethods"
+		/>
+
+		<!-- E-Wallet Selection Dialog -->
+		<MidtransEWalletSelectionDialog
+			v-model="showEWalletSelectionDialog"
+			:amount="amount"
+			@walletSelected="onEWalletSelected"
+			@goBack="goBackToPaymentMethods"
+		/>
+
+		<!-- Payment Instructions Dialog (Bank Transfer) -->
+		<MidtransPaymentInstructionsDialog
+			v-model="showPaymentInstructionsDialog"
+			:paymentData="currentPaymentData"
+			@paymentCompleted="onPaymentCompleted"
+		/>
+
+		<!-- E-Wallet Instructions Dialog -->
+		<MidtransEWalletInstructionsDialog
+			v-model="showEWalletInstructionsDialog"
+			:paymentData="currentPaymentData"
+			@paymentCompleted="onPaymentCompleted"
+		/>
 	</div>
 </template>
 
 <script setup>
-import { Button, ErrorMessage, Spinner, createResource } from 'frappe-ui';
-import { ref, nextTick, inject } from 'vue';
+import { Button, ErrorMessage, call } from 'frappe-ui';
+import { ref, inject, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { DashboardError } from '../../utils/error';
+import MidtransPaymentMethodDialog from './MidtransPaymentMethodDialog.vue';
+import MidtransBankSelectionDialog from './MidtransBankSelectionDialog.vue';
+import MidtransEWalletSelectionDialog from './MidtransEWalletSelectionDialog.vue';
+import MidtransPaymentInstructionsDialog from './MidtransPaymentInstructionsDialog.vue';
+import MidtransEWalletInstructionsDialog from './MidtransEWalletInstructionsDialog.vue';
 
 const props = defineProps({
 	amount: {
@@ -46,156 +83,134 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['success']);
+const emit = defineEmits(['success', 'cancel']);
 
 const team = inject('team');
 
 const step = ref('Get Amount');
 const errorMessage = ref(null);
-const snap = ref(null);
-const midtransConfig = ref(null);
+const showPaymentMethodDialog = ref(false);
+const showBankSelectionDialog = ref(false);
+const showEWalletSelectionDialog = ref(false);
+const showPaymentInstructionsDialog = ref(false);
+const showEWalletInstructionsDialog = ref(false);
+const currentPaymentData = ref(null);
+const selectedPaymentMethod = ref(null);
 
-// Setup Midtrans when component mounts
-const setupMidtrans = async () => {
-	try {
-		step.value = 'Setting up Midtrans';
-		
-		const result = await $call(
-			'press.api.billing.get_midtrans_client_key_and_config'
-		);
-		
-		midtransConfig.value = result;
-		
-		if (!result.client_key) {
-			throw new Error('Midtrans client key not configured');
-		}
+// Note: Using direct $call instead of createResource for better error handling
 
-		await loadMidtransSnap(result.client_key, result.is_sandbox);
-		step.value = 'Get Amount';
-		
-	} catch (error) {
-		console.error('Failed to setup Midtrans:', error);
-		errorMessage.value = 'Failed to initialize payment system';
-		step.value = 'Get Amount';
-	}
+const openPaymentMethodDialog = () => {
+	errorMessage.value = null;
+	showPaymentMethodDialog.value = true;
 };
 
-const loadMidtransSnap = (clientKey, isSandbox) => {
-	return new Promise((resolve, reject) => {
-		const snapUrl = isSandbox 
-			? 'https://app.sandbox.midtrans.com/snap/snap.js'
-			: 'https://app.midtrans.com/snap/snap.js';
-
-		// Check if script already loaded
-		if (window.snap) {
-			snap.value = window.snap;
-			resolve();
-			return;
-		}
-
-		const script = document.createElement('script');
-		script.src = snapUrl;
-		script.setAttribute('data-client-key', clientKey);
-		script.onload = () => {
-			snap.value = window.snap;
-			resolve();
-		};
-		script.onerror = () => {
-			reject(new Error('Failed to load Midtrans Snap'));
-		};
-		document.head.appendChild(script);
-	});
-};
-
-const createPaymentIntent = createResource({
-	url: 'press.api.billing.create_midtrans_prepaid_credits',
-	params() {
-		return {
-			amount: props.amount,
-			currency: team.doc.currency === 'IDR' ? 'IDR' : 'USD',
-		};
-	},
-	onSuccess(response) {
-		if (!response.success) {
-			errorMessage.value = response.error?.[0] || 'Payment creation failed';
-			return;
-		}
-
-		step.value = 'Processing Payment';
-		
-		// Launch Midtrans Snap payment
-		snap.value.pay(response.snap_token, {
-			onSuccess: (result) => {
-				handlePaymentSuccess(result, response.order_id);
-			},
-			onPending: (result) => {
-				handlePaymentPending(result, response.order_id);
-			},
-			onError: (result) => {
-				handlePaymentError(result);
-			},
-			onClose: () => {
-				step.value = 'Get Amount';
-			}
-		});
-	},
-	onError(error) {
-		console.error('Payment intent creation failed:', error);
-		errorMessage.value = error.message || 'Payment creation failed';
-		step.value = 'Get Amount';
-	}
-});
-
-const handlePaymentSuccess = async (result, orderId) => {
-	try {
-		// Verify payment status
-		const verifyResponse = await $call(
-			'press.api.billing.verify_midtrans_payment_status',
-			{
-				order_id: orderId,
-				transaction_id: result.transaction_id
-			}
-		);
-
-		if (verifyResponse.success && verifyResponse.status === 'capture') {
-			toast.success('Payment successful! Credits added to your account.');
-			emit('success', {
-				amount: props.amount,
-				transaction_id: result.transaction_id,
-				order_id: orderId
-			});
-		} else {
-			throw new Error('Payment verification failed');
-		}
-	} catch (error) {
-		console.error('Payment verification failed:', error);
-		errorMessage.value = 'Payment completed but verification failed. Please contact support.';
-	} finally {
-		step.value = 'Get Amount';
-	}
-};
-
-const handlePaymentPending = async (result, orderId) => {
-	console.log('Payment pending:', result);
-	toast.info('Payment is pending. We will update your credits once payment is confirmed.');
+const onPaymentMethodSelected = ({ method, amount }) => {
+	selectedPaymentMethod.value = method;
 	
-	// Still emit success as the payment is initiated
+	if (method === 'bank_transfer') {
+		showBankSelectionDialog.value = true;
+	} else if (method === 'ewallet') {
+		showEWalletSelectionDialog.value = true;
+	}
+};
+
+const onBankSelected = async ({ bank, amount }) => {
+	step.value = 'Processing Payment';
+	errorMessage.value = null;
+	
+	try {
+		// Call the API method directly since createResource has its own error handling
+		const response = await call('press.api.billing.create_midtrans_bank_transfer', {
+			amount: amount,
+			currency: team.doc.currency || 'USD',
+			bank: bank,
+			payment_method: 'bank_transfer'
+		});
+		
+		console.log(response)
+
+		if (response.success) {
+			currentPaymentData.value = response.data;
+			showPaymentInstructionsDialog.value = true;
+			step.value = 'Get Amount';
+		} else {
+			errorMessage.value = response.error || 'Payment creation failed';
+			step.value = 'Get Amount';
+		}
+	} catch (error) {
+		console.error('Failed to create bank transfer payment:', error);
+		errorMessage.value = error.message || 'Failed to create payment. Please try again.';
+		step.value = 'Get Amount';
+	}
+};
+
+const onEWalletSelected = async ({ wallet, amount }) => {
+	step.value = 'Processing Payment';
+	errorMessage.value = null;
+	
+	try {
+		const response = await call('press.api.billing.create_midtrans_ewallet_payment', {
+			amount: amount,
+			currency: team.doc.currency || 'USD',
+			ewallet: wallet
+		});
+		
+		console.log('E-Wallet response:', response);
+
+		if (response.success) {
+			currentPaymentData.value = response.data;
+			showEWalletInstructionsDialog.value = true;
+			step.value = 'Get Amount';
+		} else {
+			errorMessage.value = response.error || 'E-Wallet payment creation failed';
+			step.value = 'Get Amount';
+		}
+	} catch (error) {
+		console.error('Failed to create E-Wallet payment:', error);
+		errorMessage.value = error.message || 'Failed to create payment. Please try again.';
+		step.value = 'Get Amount';
+	}
+};
+
+const goBackToPaymentMethods = () => {
+	showBankSelectionDialog.value = false;
+	showEWalletSelectionDialog.value = false;
+	showPaymentMethodDialog.value = true;
+};
+
+const onPaymentCompleted = (paymentResult) => {
+	toast.success('Payment completed successfully! Credits have been added to your account.');
 	emit('success', {
 		amount: props.amount,
-		transaction_id: result.transaction_id,
-		order_id: orderId,
-		status: 'pending'
+		transaction_id: paymentResult.transaction_id,
+		status: paymentResult.status
 	});
-	
-	step.value = 'Get Amount';
 };
 
-const handlePaymentError = (result) => {
-	console.error('Payment error:', result);
-	errorMessage.value = result.status_message || 'Payment failed. Please try again.';
+// Cleanup function
+const cleanup = () => {
 	step.value = 'Get Amount';
+	errorMessage.value = null;
+	showPaymentMethodDialog.value = false;
+	showBankSelectionDialog.value = false;
+	showEWalletSelectionDialog.value = false;
+	showPaymentInstructionsDialog.value = false;
+	showEWalletInstructionsDialog.value = false;
+	currentPaymentData.value = null;
+	selectedPaymentMethod.value = null;
 };
 
-// Initialize Midtrans when component mounts
-setupMidtrans();
+// Handle cancel event
+const handleCancel = () => {
+	cleanup();
+	emit('cancel');
+};
+
+// Watch for dialog closures to handle cancellation
+watch([showPaymentMethodDialog, showBankSelectionDialog, showEWalletSelectionDialog, showPaymentInstructionsDialog, showEWalletInstructionsDialog], ([method, bank, ewallet, instructions, ewalletInstructions]) => {
+	if (!method && !bank && !ewallet && !instructions && !ewalletInstructions && step.value !== 'Processing Payment') {
+		// All dialogs closed and not processing - this means user cancelled
+		handleCancel();
+	}
+});
 </script>

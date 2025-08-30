@@ -37,6 +37,7 @@
   "default_payment_method",
   "billing_name",
   "billing_address",
+  "credits_count_transaction",
   "free_credits_allocated",
   "column_break_12",
   "address_html",
@@ -581,6 +582,13 @@
    "fieldname": "skip_onboarding",
    "fieldtype": "Check",
    "label": "Skip Onboarding"
+  },
+  {
+   "default": "1",
+   "fieldname": "credits_count_transaction",
+   "fieldtype": "Data",
+   "label": "Credits Count Transaction",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -646,7 +654,7 @@
    "link_fieldname": "team"
   }
  ],
- "modified": "2025-08-27 14:18:33.234595",
+ "modified": "2025-08-29 10:43:07.723384",
  "modified_by": "Administrator",
  "module": "Press",
  "name": "Team",

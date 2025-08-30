@@ -131,7 +131,7 @@ export default {
 	computed: {
 		totalAmount() {
 			let creditsToBuy = this.creditsToBuy || 0;
-			if (this.$team.doc.currency === 'INR') {
+			if (this.$team.doc.currency === 'IDR') {
 				return (
 					creditsToBuy +
 					creditsToBuy * (this.$team.doc.billing_info.gst_percentage || 0)

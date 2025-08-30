@@ -65,6 +65,7 @@
 					<RazorpayLogo class="w-24" />
 				</Button>
 				<Button
+					v-if="!defaultPaymentGateway.data || defaultPaymentGateway.data?.gateway === 'Stripe'"
 					size="lg"
 					:class="{
 						'border-[1.5px] border-gray-700': paymentGateway === 'Stripe',
@@ -72,6 +73,16 @@
 					@click="paymentGateway = 'Stripe'"
 				>
 					<StripeLogo class="h-7 w-24" />
+				</Button>
+				<Button
+					v-if="defaultPaymentGateway.data?.gateway === 'Midtrans'"
+					size="lg"
+					:class="{
+						'border-[1.5px] border-gray-700': paymentGateway === 'Midtrans',
+					}"
+					@click="paymentGateway = 'Midtrans'"
+				>
+					<MidtransLogo class="h-7 w-24" />
 				</Button>
 				<Button
 					v-if="team.doc.country === 'Kenya'"
@@ -107,6 +118,14 @@
 			@cancel="show = false"
 		/>
 
+		<BuyCreditsMidtrans
+			v-if="paymentGateway === 'Midtrans'"
+			:amount="creditsToBuy"
+			:minimumAmount="minimumAmount"
+			@success="() => emit('success')"
+			@cancel="show = false"
+		/>
+
 		<BuyPrepaidCreditsMpesa
 			v-if="paymentGateway === 'M-Pesa'"
 			:amount="creditsToBuy"
@@ -121,8 +140,10 @@
 <script setup>
 import BuyCreditsStripe from './BuyCreditsStripe.vue';
 import BuyCreditsRazorpay from './BuyCreditsRazorpay.vue';
+import BuyCreditsMidtrans from './BuyCreditsMidtrans.vue';
 import RazorpayLogo from '../../logo/RazorpayLogo.vue';
 import StripeLogo from '../../logo/StripeLogo.vue';
+import MidtransLogo from '../MidtransLogo.vue';
 import BuyPrepaidCreditsMpesa from './mpesa/BuyPrepaidCreditsMpesa.vue';
 import { FormControl, Button, createResource } from 'frappe-ui';
 import { ref, computed, inject, watch, onMounted } from 'vue';
@@ -140,11 +161,17 @@ const totalUnpaidAmount = createResource({
 	auto: true,
 });
 
+const defaultPaymentGateway = createResource({
+	url: 'press.api.billing.get_default_payment_gateway_config',
+	cache: 'defaultPaymentGateway',
+	auto: true,
+});
+
 const minimumAmount = computed(() => {
 	if (props.minimumAmount) return props.minimumAmount;
 	if (!team.doc) return 0;
 	const unpaidAmount = totalUnpaidAmount.data || 0;
-	const minimumDefault = team.doc?.currency == 'INR' ? 410 : 5;
+	const minimumDefault = team.doc?.currency == 'IDR' ? 100000 : 5;
 
 	return Math.ceil(
 		unpaidAmount && unpaidAmount > 0 ? unpaidAmount : minimumDefault,

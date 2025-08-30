@@ -208,7 +208,7 @@ def create_midtrans_snap_payment(amount, currency="IDR", invoice_id=None, regist
 			}
 			
 	except Exception as e:
-		frappe.log_error(f"Midtrans Snap payment creation failed: {str(e)}")
+		frappe.log_error(f"Snap payment failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Payment processing failed. Please try again."]
@@ -258,7 +258,7 @@ def create_midtrans_direct_payment(payment_method_id, amount, currency="IDR", in
 		}
 		
 	except Exception as e:
-		frappe.log_error(f"Midtrans direct payment failed: {str(e)}")
+		frappe.log_error(f"Direct payment failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Payment processing failed. Please try again."]
@@ -422,7 +422,7 @@ def register_midtrans_card(card_number, card_exp_month, card_exp_year, card_cvv,
 		}
 		
 	except Exception as e:
-		frappe.log_error(f"Failed to register Midtrans card: {str(e)}")
+		frappe.log_error(f"Card register failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": [f"Failed to register card: {str(e)}"]
@@ -487,12 +487,12 @@ def create_midtrans_card_token(card_number, card_exp_month, card_exp_year, card_
 			"Content-Type": "application/json"
 		}
 		
-		frappe.log_error("Midtrans API Call", f"URL: {url}\nParams: {params}\nAuth: {auth_header[:30]}...")
+		frappe.log_error(f"API Call: {url}", "Midtrans Debug")
 		
 		# Use GET method as per Midtrans documentation
 		response = requests.get(url, params=params, headers=headers)
 		
-		frappe.log_error("Midtrans API Response", f"Status: {response.status_code}\nContent: {response.text}")
+		frappe.log_error(f"Status: {response.status_code}", "Midtrans Response")
 		
 		result = response.json()
 		
@@ -576,7 +576,7 @@ def save_midtrans_payment_method(token, card_details, billing_address=None):
 		}
 		
 	except Exception as e:
-		frappe.log_error(f"Failed to save Midtrans payment method: {str(e)}")
+		frappe.log_error(f"Save method failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Failed to save payment method. Please try again."]
@@ -609,7 +609,7 @@ def set_default_midtrans_payment_method(payment_method_id):
 		return {"success": True}
 		
 	except Exception as e:
-		frappe.log_error(f"Failed to set default payment method: {str(e)}")
+		frappe.log_error(f"Set default failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Failed to update payment method. Please try again."]
@@ -629,7 +629,7 @@ def delete_midtrans_payment_method(payment_method_id):
 	try:
 		return payment_method.delete()
 	except Exception as e:
-		frappe.log_error(f"Failed to delete payment method: {str(e)}")
+		frappe.log_error(f"Delete method failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Failed to delete payment method. Please try again."]
@@ -758,10 +758,673 @@ def verify_midtrans_payment_status(order_id, transaction_id=None):
 		}
 		
 	except Exception as e:
-		frappe.log_error(f"Failed to verify Midtrans payment status: {str(e)}")
+		frappe.log_error(f"Verify status failed: {str(e)[:100]}", "Midtrans Error")
 		return {
 			"success": False,
 			"error": ["Failed to verify payment status"]
+		}
+
+
+def get_bank_display_name(bank_code):
+	"""Get human-readable bank name from bank code"""
+	bank_names = {
+		"bca": "Bank Central Asia (BCA)",
+		"bni": "Bank Negara Indonesia (BNI)",
+		"bri": "Bank Rakyat Indonesia (BRI)",
+		"mandiri": "Bank Mandiri",
+		"permata": "Bank Permata",
+		"cimb": "CIMB Niaga",
+		"other": "Other Bank"
+	}
+	return bank_names.get(bank_code.lower(), bank_code.upper())
+
+
+def get_bank_instructions(bank_code):
+	"""Get bank-specific payment instructions"""
+	instructions = {
+		"bca": [
+			"Login to your BCA mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"Virtual Account\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		],
+		"bni": [
+			"Login to your BNI mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"Virtual Account Billing\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		],
+		"bri": [
+			"Login to your BRI mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"BRIVA\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		],
+		"mandiri": [
+			"Login to your Mandiri mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"Virtual Account\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		],
+		"permata": [
+			"Login to your Permata mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"Virtual Account\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		],
+		"cimb": [
+			"Login to your CIMB Niaga mobile banking or internet banking",
+			"Select \"Transfer\" menu",
+			"Choose \"Virtual Account\" as destination",
+			"Enter the Virtual Account Number",
+			"Enter the exact amount",
+			"Confirm and complete the transfer"
+		]
+	}
+	return instructions.get(bank_code.lower(), instructions["bca"])
+
+
+@frappe.whitelist()
+def get_bank_payment_instructions(bank_code):
+	"""Get payment instructions for a specific bank"""
+	return {
+		"bank_code": bank_code.upper(),
+		"bank_name": get_bank_display_name(bank_code),
+		"instructions": get_bank_instructions(bank_code)
+	}
+
+
+@frappe.whitelist()
+def create_midtrans_ewallet_payment(amount, currency="IDR", ewallet="gopay"):
+	"""Create E-Wallet payment using Midtrans Core API"""
+	team = get_current_team()
+	
+	if float(amount) < 1:
+		return {
+			"success": False,
+			"error": "Minimum amount is 1.00"
+		}
+	
+	try:
+		# Get Midtrans configuration from Press Settings
+		press_settings = frappe.get_single("Press Settings")
+		is_sandbox = press_settings.midtrans_sandbox
+		server_key = press_settings.get_password("midtrans_server_key")
+		
+		if not server_key:
+			return {
+				"success": False,
+				"error": "Midtrans server key not configured in Press Settings"
+			}
+
+		import requests
+		import json
+		from datetime import datetime
+		
+		# Generate unique order ID (Midtrans requirements: max 50 chars, alphanumeric + dash/underscore only)
+		doc_team = frappe.get_doc("Team", team)
+		current_time = datetime.now()
+		formatted_current_time = current_time.strftime("%d%m%Y%H%M%S")
+		order_id = f"CREDITS-{doc_team.user}-{formatted_current_time}"
+
+		# Prepare request data for E-Wallet Core API
+		# Different E-Wallets have different payment types and structures
+		if ewallet.lower() == 'gopay':
+			request_data = {
+				"payment_type": "gopay",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": int(float(amount))
+				},
+				"gopay": {
+					"enable_callback": True,
+					"callback_url": get_request_site_address(True) + "/api/method/press.api.billing.verify_midtrans_ewallet_payment"
+				}
+			}
+		elif ewallet.lower() == 'qris':
+			request_data = {
+				"payment_type": "qris",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": int(float(amount))
+				}
+			}
+		elif ewallet.lower() in ['ovo', 'dana', 'shopeepay']:
+			# For OVO, DANA, ShopeePay - use ewallet payment type
+			request_data = {
+				"payment_type": "ewallet",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": int(float(amount))
+				},
+				"ewallet": {
+					"channel": ewallet.lower()
+				}
+			}
+		else:
+			return {
+				"success": False,
+				"error": f"Unsupported E-Wallet provider: {ewallet}"
+			}
+		
+		# Prepare authorization header (Base64 encode server_key + ":")
+		auth_string = f"{server_key}:"
+		import base64
+		auth_header = base64.b64encode(auth_string.encode()).decode()
+		
+		headers = {
+			"Accept": "application/json",
+			"Content-Type": "application/json",
+			"Authorization": f"Basic {auth_header}"
+		}
+		
+		# Use appropriate API URL based on sandbox/production mode
+		base_url = "https://api.sandbox.midtrans.com/v2" if is_sandbox else "https://api.midtrans.com/v2"
+		url = f"{base_url}/charge"
+		
+		response = requests.post(url, headers=headers, data=json.dumps(request_data))
+		
+		if response.status_code == 200:
+			payment_data = response.json()
+			
+			# Check if payment was created successfully using response status_code
+			if payment_data.get("status_code") == "201":
+				# Extract payment information based on E-Wallet type
+				payment_info = {}
+				
+				# Extract payment information based on E-Wallet type
+				actions = payment_data.get('actions', [])
+				
+				if ewallet.lower() == 'gopay':
+					# GoPay usually has: [0] = QR code, [1] = deeplink
+					qr_code = None
+					deeplink = None
+					
+					for action in actions:
+						if action.get('method') == 'GET':  # QR code
+							qr_code = action.get('url')
+						elif action.get('method') == 'POST':  # Deeplink  
+							deeplink = action.get('url')
+					
+					# Fallback: if no method specified, assume first is QR, second is deeplink
+					if not qr_code and actions:
+						qr_code = actions[0].get('url')
+					if not deeplink and len(actions) > 1:
+						deeplink = actions[1].get('url')
+					
+					payment_info = {
+						"qr_code": qr_code,
+						"deeplink": deeplink
+					}
+					
+				elif ewallet.lower() == 'qris':
+					# QRIS only has QR code
+					payment_info = {
+						"qr_code": actions[0].get('url') if actions else None,
+						"deeplink": None  # QRIS doesn't have deeplink
+					}
+					
+				elif ewallet.lower() in ['ovo', 'dana', 'shopeepay']:
+					# These wallets usually provide deeplink only
+					payment_info = {
+						"qr_code": None,
+						"deeplink": actions[0].get('url') if actions else None
+					}
+				else:
+					# Fallback for unknown wallets
+					payment_info = {
+						"qr_code": actions[0].get('url') if actions else None,
+						"deeplink": actions[1].get('url') if len(actions) > 1 else None
+					}
+				
+				# Create Midtrans Payment Event record
+				try:
+					frappe.get_doc({
+						"doctype": "Midtrans Payment Event",
+						"midtrans_transaction_id": payment_data.get("transaction_id"),
+						"midtrans_order_id": order_id,
+						"transaction_status": payment_data.get("transaction_status"),
+						"payment_type": ewallet.lower(),
+						"event_type": "Transaction",
+						"team": team,
+						"midtrans_transaction_object": frappe.as_json(payment_data)
+					}).insert(ignore_permissions=True)
+				except Exception as e:
+					frappe.log_error(f"Failed to create Midtrans Payment Event: {str(e)}", "Midtrans Event Error")
+				
+				return {
+					"success": True,
+					"data": {
+						"transaction_id": payment_data.get("transaction_id"),
+						"order_id": order_id,
+						"status": payment_data.get("transaction_status"),
+						"amount": float(amount),
+						"currency": currency,
+						"ewallet": ewallet.upper(),
+						"ewallet_name": get_ewallet_display_name(ewallet),
+						"payment_type": "ewallet",
+						"expiry_time": payment_data.get("expiry_time"),
+						**payment_info
+					}
+				}
+			else:
+				# Payment creation failed, return error from response
+				error_messages = payment_data.get("error_messages", [])
+				status_message = payment_data.get("status_message", "")
+				
+				if not error_messages and status_message:
+					error_messages = [status_message]
+				elif not error_messages:
+					error_messages = [f"Payment creation failed with status {payment_data.get('status_code')}"]
+				
+				return {
+					"success": False,
+					"error": error_messages[0] if len(error_messages) == 1 else error_messages,
+					"status_code": payment_data.get("status_code"),
+					"raw_response": response.text[:500]
+				}
+		else:
+			# Enhanced error handling
+			error_data = {}
+			try:
+				error_data = response.json() if response.content else {}
+			except:
+				pass
+				
+			frappe.log_error(f"E-Wallet payment failed: {response.text[:100]}", "Midtrans Error")
+			
+			# Return more detailed error information
+			error_messages = error_data.get("error_messages", [])
+			status_message = error_data.get("status_message", "")
+			
+			if not error_messages and status_message:
+				error_messages = [status_message]
+			elif not error_messages:
+				error_messages = [f"API request failed with status {response.status_code}"]
+			
+			return {
+				"success": False,
+				"error": error_messages[0] if len(error_messages) == 1 else error_messages,
+				"status_code": response.status_code,
+				"raw_response": response.text[:500]
+			}
+			
+	except Exception as e:
+		frappe.log_error(f"E-Wallet payment error: {str(e)[:100]}", "Midtrans Exception")
+		return {
+			"success": False,
+			"error": ["Failed to create payment. Please try again."]
+		}
+
+
+def get_ewallet_display_name(ewallet_code):
+	"""Get human-readable E-Wallet name from wallet code"""
+	ewallet_names = {
+		"gopay": "GoPay",
+		"ovo": "OVO",
+		"dana": "DANA",
+		"shopeepay": "ShopeePay",
+		"qris": "QRIS"
+	}
+	return ewallet_names.get(ewallet_code.lower(), ewallet_code.upper())
+
+
+@frappe.whitelist()
+def create_midtrans_bank_transfer(amount, currency="IDR", bank="bca", payment_method="bank_transfer"):
+	"""Create bank transfer payment using Midtrans Core API"""
+	team = get_current_team()
+	
+	if float(amount) < 1:
+		return {
+			"success": False,
+			"error": "Minimum amount is 1.00"
+		}
+	
+	try:
+		# Get Midtrans configuration from Press Settings
+		press_settings = frappe.get_single("Press Settings")
+		is_sandbox = press_settings.midtrans_sandbox
+		server_key = press_settings.get_password("midtrans_server_key")
+		
+		print(f"DEBUG:::: server_key {server_key}")
+
+		if not server_key:
+			return {
+				"success": False,
+				"error": "Midtrans server key not configured in Press Settings"
+			}
+
+		import requests
+		import json
+		from datetime import datetime, timedelta
+		
+		# Generate unique order ID (Midtrans requirements: max 50 chars, alphanumeric + dash/underscore only)
+		doc_team = frappe.get_doc("Team", team)
+		current_time = datetime.now()
+		formatted_current_time = current_time.strftime("%d%m%Y%H%M%S")
+		order_id = f"CREDITS-{doc_team.user}-{formatted_current_time}"
+
+		# Prepare request data for Core API
+		# Mandiri uses echannel payment type instead of bank_transfer
+		if bank.lower() == 'mandiri':
+			request_data = {
+				"payment_type": "echannel",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": int(float(amount))
+				},
+				"echannel": {
+					"bill_info1": order_id,  # Set bill_info1 with order_id
+					"bill_info2": str(int(float(amount)))  # Set bill_info2 with amount
+				}
+			}
+		else:
+			# For other banks, use standard bank_transfer
+			request_data = {
+				"payment_type": "bank_transfer",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": int(float(amount))
+				},
+				"bank_transfer": {
+					"bank": bank
+				}
+			}
+		
+		print(f"DEBUG:::: request_data: {json.dumps(request_data, indent=2)}")
+		print(f"DEBUG:::: is_sandbox: {is_sandbox}")
+		print(f"DEBUG:::: server_key length: {len(server_key) if server_key else 0}")
+		
+		# Prepare authorization header (Base64 encode server_key + ":")
+		auth_string = f"{server_key}:"
+		import base64
+		auth_header = base64.b64encode(auth_string.encode()).decode()
+		
+		headers = {
+			"Accept": "application/json",
+			"Content-Type": "application/json",
+			"Authorization": f"Basic {auth_header}"
+		}
+		
+		# Use appropriate API URL based on sandbox/production mode
+		base_url = "https://api.sandbox.midtrans.com/v2" if is_sandbox else "https://api.midtrans.com/v2"
+		url = f"{base_url}/charge"
+		
+		response = requests.post(url, headers=headers, data=json.dumps(request_data))
+		print(f"DEBUG:::response {response}")
+		print(f"DEBUG::: {response.status_code}")
+		print(f"DEBUG::: response {response.status_code == 200}")
+		if response.status_code == 200:
+			payment_data = response.json()
+			
+			print(f"DEBUG::::payment data {payment_data}")
+
+			# Check if payment was created successfully using response status_code
+			if payment_data.get("status_code") == "201":
+				# Extract VA number based on bank and payment type
+				va_number = None
+				
+				if bank.lower() == 'mandiri':
+					# For Mandiri echannel, the VA number is in bill_key field
+					va_number = payment_data.get('bill_key')
+				else:
+					# For other banks using bank_transfer, look in va_numbers array
+					if 'va_numbers' in payment_data:
+						for va in payment_data['va_numbers']:
+							if va['bank'].lower() == bank.lower():
+								va_number = va['va_number']
+								break
+				
+				# Create Midtrans Payment Event record
+				try:
+					frappe.get_doc({
+						"doctype": "Midtrans Payment Event",
+						"midtrans_transaction_id": payment_data.get("transaction_id"),
+						"midtrans_order_id": order_id,
+						"transaction_status": payment_data.get("transaction_status"),
+						"payment_type": "bank_transfer",
+						"event_type": "Transaction",
+						"team": team,
+						"midtrans_transaction_object": frappe.as_json(payment_data)
+					}).insert(ignore_permissions=True)
+					
+					print(f"DEBUG::::Midtrans Payment Event created successfully")
+				except Exception as e:
+					frappe.log_error(f"Failed to create Midtrans Payment Event: {str(e)}", "Midtrans Event Error")
+				
+				print(f"DEBUG::::now should be return response")
+				return {
+					"success": True,
+					"data": {
+						"transaction_id": payment_data.get("transaction_id"),
+						"order_id": order_id,
+						"status": payment_data.get("transaction_status"),
+						"amount": float(amount),
+						"currency": currency,
+						"bank": bank.upper(),  # Return bank name in uppercase for consistent display
+						"bank_name": get_bank_display_name(bank),  # Human-readable bank name
+						"va_number": va_number,
+						"expiry_time": payment_data.get("expiry_time"),
+						"payment_type": "bank_transfer"
+					}
+				}
+			else:
+				# Payment creation failed, return error from response
+				error_messages = payment_data.get("error_messages", [])
+				status_message = payment_data.get("status_message", "")
+				
+				if not error_messages and status_message:
+					error_messages = [status_message]
+				elif not error_messages:
+					error_messages = [f"Payment creation failed with status {payment_data.get('status_code')}"]
+				
+				return {
+					"success": False,
+					"error": error_messages[0] if len(error_messages) == 1 else error_messages,
+					"status_code": payment_data.get("status_code"),
+					"raw_response": response.text[:500]
+				}
+		else:
+			# Enhanced error handling
+			error_data = {}
+			try:
+				error_data = response.json() if response.content else {}
+			except:
+				pass
+				
+			frappe.log_error(f"Bank transfer failed: {response.text[:100]}", "Midtrans Error")
+			
+			# Return more detailed error information
+			error_messages = error_data.get("error_messages", [])
+			status_message = error_data.get("status_message", "")
+			
+			if not error_messages and status_message:
+				error_messages = [status_message]
+			elif not error_messages:
+				error_messages = [f"API request failed with status {response.status_code}"]
+			
+			return {
+				"success": False,
+				"error": error_messages[0] if len(error_messages) == 1 else error_messages,
+				"status_code": response.status_code,
+				"raw_response": response.text[:500]  # First 500 chars for debugging
+			}
+			
+	except Exception as e:
+		frappe.log_error(f"Bank transfer error: {str(e)[:100]}", "Midtrans Exception")
+		return {
+			"success": False,
+			"error": ["Failed to create payment. Please try again."]
+		}
+
+
+@frappe.whitelist(allow_guest=True)
+def verify_midtrans_ewallet_payment():
+	"""Callback endpoint for E-Wallet payment verification"""
+	try:
+		# Get the JSON data from Midtrans callback
+		import json
+		callback_data = json.loads(frappe.request.data)
+		
+		transaction_id = callback_data.get('transaction_id')
+		order_id = callback_data.get('order_id')
+		transaction_status = callback_data.get('transaction_status')
+		
+		if transaction_status in ['settlement', 'capture']:
+			# Payment successful - find and update the payment event
+			payment_event = frappe.db.get_value(
+				"Midtrans Payment Event", 
+				{"midtrans_transaction_id": transaction_id}, 
+				"name"
+			)
+			
+			if payment_event:
+				event_doc = frappe.get_doc("Midtrans Payment Event", payment_event)
+				event_doc.transaction_status = transaction_status
+				event_doc.midtrans_transaction_object = frappe.as_json(callback_data)
+				event_doc.save(ignore_permissions=True)
+				
+				# Process the payment - add credits to team
+				team = event_doc.team
+				amount = callback_data.get('gross_amount', 0) / 100  # Convert from cents
+				
+				# Check if already processed
+				if not frappe.db.exists("Balance Transaction", {"description": transaction_id}):
+					team_doc = frappe.get_doc("Team", team)
+					team_doc.allocate_credit_amount(
+						amount=amount,
+						source="Prepaid Credits",
+						remark=transaction_id,
+						type="Adjustment"
+					)
+		
+		return {"status": "OK"}
+		
+	except Exception as e:
+		frappe.log_error(f"E-Wallet callback error: {str(e)}", "Midtrans Callback")
+		return {"status": "ERROR"}
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def download_qr_image():
+	"""Proxy QR code image download to bypass CORS restrictions"""
+	try:
+		import requests
+		from frappe.utils.response import build_response
+		
+		# Get QR URL from query parameters
+		qr_url = frappe.form_dict.get('qr_url')
+		if not qr_url:
+			return {"error": "QR URL is required"}
+		
+		# Fetch the QR code image
+		response = requests.get(qr_url, stream=True, timeout=10)
+		response.raise_for_status()
+		
+		# Build file response
+		frappe.local.response.filename = "qr-code.png"
+		frappe.local.response.filecontent = response.content
+		frappe.local.response.type = "download"
+		
+		# Set headers
+		if not hasattr(frappe.local, 'response') or not frappe.local.response:
+			frappe.local.response = frappe._dict()
+			
+		if not hasattr(frappe.local.response, 'headers'):
+			frappe.local.response.headers = {}
+			
+		frappe.local.response.headers.update({
+			'Content-Type': response.headers.get('Content-Type', 'image/png'),
+			'Content-Disposition': 'attachment; filename="qr-code.png"',
+			'Content-Length': str(len(response.content))
+		})
+		
+	except requests.RequestException as e:
+		frappe.log_error(f"QR download request failed: {str(e)}", "QR Download Error")
+		return {"error": f"Failed to fetch QR code: {str(e)}"}
+	except Exception as e:
+		frappe.log_error(f"QR download failed: {str(e)}", "QR Download Error")
+		return {"error": "Failed to download QR code image"}
+
+
+@frappe.whitelist()
+def check_midtrans_payment_status(transaction_id):
+	"""Check payment status for a specific transaction"""
+	try:
+		# Get Midtrans configuration from Press Settings
+		press_settings = frappe.get_single("Press Settings")
+		is_sandbox = press_settings.midtrans_sandbox
+		server_key = press_settings.midtrans_server_key
+		
+		if not server_key:
+			return {
+				"success": False,
+				"error": "Midtrans server key not configured in Press Settings"
+			}
+		
+		import requests
+		
+		# Prepare authorization header (Base64 encode server_key + ":")
+		auth_string = f"{server_key}:"
+		import base64
+		auth_header = base64.b64encode(auth_string.encode()).decode()
+		
+		headers = {
+			"Accept": "application/json",
+			"Authorization": f"Basic {auth_header}"
+		}
+		
+		# Use appropriate API URL based on sandbox/production mode
+		base_url = "https://api.sandbox.midtrans.com/v2" if is_sandbox else "https://api.midtrans.com/v2"
+		url = f"{base_url}/{transaction_id}/status"
+		
+		response = requests.get(url, headers=headers)
+		
+		if response.status_code == 200:
+			payment_data = response.json()
+			
+			# Process settlement/capture status
+			if payment_data.get("transaction_status") in ["settlement", "capture"]:
+				# Payment completed - create balance transaction
+				team = get_current_team()
+				
+				# Check if already processed
+				if not frappe.db.exists("Balance Transaction", {"description": transaction_id}):
+					amount = float(payment_data.get("gross_amount", 0))
+					team.allocate_credit_amount(
+						amount=amount,
+						source="Prepaid Credits",
+						remark=transaction_id,
+						type="Adjustment"
+					)
+			
+			return {
+				"success": True,
+				"status": payment_data.get("transaction_status"),
+				"transaction_id": transaction_id,
+				"payment_data": payment_data
+			}
+		else:
+			return {
+				"success": False,
+				"error": "Failed to check payment status"
+			}
+			
+	except Exception as e:
+		frappe.log_error(f"Check status failed: {str(e)[:100]}", "Midtrans Error")
+		return {
+			"success": False,
+			"error": "Failed to check payment status"
 		}
 
 

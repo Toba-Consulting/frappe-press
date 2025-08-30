@@ -98,7 +98,7 @@
 			<div class="mt-6 flex items-center justify-between">
 				<PoweredByStripeLogo v-if="paymentGateway === 'Stripe'" />
 				<div v-else-if="paymentGateway === 'Midtrans'" class="flex items-center text-xs text-gray-500">
-					Powered by Midtrans
+					Powered by <MidtransLogo class="h-7 w-24 ml-1" />
 				</div>
 				<Button
 					v-if="showAddAnotherCardButton"
@@ -142,6 +142,7 @@
 <script setup>
 import NewAddressForm from './NewAddressForm.vue';
 import PoweredByStripeLogo from '../../logo/PoweredByStripeLogo.vue';
+import MidtransLogo from '../MidtransLogo.vue';
 import {
 	FeatherIcon,
 	Button,
