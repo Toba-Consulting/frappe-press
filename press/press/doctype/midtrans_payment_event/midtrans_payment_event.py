@@ -54,6 +54,8 @@ class MidtransPaymentEvent(Document):
 			else:
 				# Handle prepaid credits - create balance transaction and invoice
 				self.create_credit_balance_transaction()
+			# Cancel other pending transactions for the same team
+			self.cancel_other_pending_transactions()
 		elif self.payment_status == "Pending" and not self.invoice:
 			# Create pending invoice for credit purchases
 			print(f"DEBUG:::this is invoice!!!!")
@@ -181,6 +183,46 @@ class MidtransPaymentEvent(Document):
 		except Exception as e:
 			frappe.log_error(f"Failed to create credit balance transaction for {self.name}: {str(e)}")
 
+	def cancel_other_pending_transactions(self):
+		"""Cancel other pending Midtrans payment events for the same team when one gets paid"""
+		if not self.team:
+			return
+			
+		try:
+			# Find all other pending payment events for the same team (excluding current one)
+			pending_events = frappe.get_all("Midtrans Payment Event", 
+				filters={
+					"team": self.team,
+					"payment_status": "Pending",
+					"name": ["!=", self.name]
+				},
+				fields=["name"]
+			)
+			
+			# Cancel each pending event
+			for event in pending_events:
+				try:
+					payment_event = frappe.get_doc("Midtrans Payment Event", event.name)
+					payment_event.payment_status = "Unpaid"
+					payment_event.transaction_status = "cancel"
+					payment_event.save(ignore_permissions=True)
+					
+					# If there's an associated pending invoice, cancel it too
+					if payment_event.invoice:
+						invoice = frappe.get_doc("Invoice", payment_event.invoice)
+						if invoice.status in ["Draft", "Unpaid"]:
+							invoice.status = "Cancelled"
+							invoice.save(ignore_permissions=True)
+							
+					frappe.db.commit()
+					print(f"DEBUG:::Cancelled pending payment event {event.name}")
+					
+				except Exception as e:
+					frappe.log_error(f"Failed to cancel pending payment event {event.name}: {str(e)}")
+					
+		except Exception as e:
+			frappe.log_error(f"Failed to cancel other pending transactions for team {self.team}: {str(e)}")
+
 
 @frappe.whitelist()
 def create_payment_event_from_webhook(notification_data):
@@ -229,6 +271,9 @@ def create_payment_event_from_webhook(notification_data):
 				elif event.team:
 					# No invoice but has team - direct credit purchase
 					event.create_credit_balance_transaction()
+				
+				# Cancel other pending transactions for the same team
+				event.cancel_other_pending_transactions()
 			
 			return event.name
 		else:
