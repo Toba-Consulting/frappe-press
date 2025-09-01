@@ -2357,3 +2357,56 @@ def parse_datetime(date):
 	from datetime import datetime
 
 	return datetime.strptime(str(date), "%Y%m%d%H%M%S")
+
+
+@frappe.whitelist()
+def get_midtrans_invoice_pdf(invoice_name):
+	"""Generate PDF for Midtrans invoice"""
+	import os
+	from frappe.utils.pdf import get_pdf
+	
+	# Get the invoice
+	invoice = frappe.get_doc("Invoice", invoice_name)
+	
+	# Get team user if team exists
+	team_user = None
+	if invoice.team:
+		team_user = frappe.db.get_value("Team", invoice.team, "user")
+	
+	# Get associated payment event
+	payment_event = None
+	if invoice.items:
+		for item in invoice.items:
+			if item.document_type == "Midtrans Payment Event":
+				payment_event = frappe.get_doc("Midtrans Payment Event", item.document_name)
+				break
+	
+	# Get template path
+	template_path = os.path.join(
+		frappe.get_app_path("press"),
+		"press", "print_format", "midtrans_invoice", "midtrans_invoice.html"
+	)
+	
+	# Read template
+	with open(template_path, 'r') as f:
+		template_content = f.read()
+	
+	# Render template with context
+	from frappe.utils.jinja import get_jenv
+	jenv = get_jenv()
+	template = jenv.from_string(template_content)
+	
+	html_content = template.render(
+		doc=invoice,
+		team_user=team_user,
+		payment_event=payment_event,
+		frappe=frappe
+	)
+	
+	# Generate PDF with minimal options
+	pdf = get_pdf(html_content)
+	
+	# Return PDF response
+	frappe.local.response.filename = f"midtrans_invoice_{invoice_name}.pdf"
+	frappe.local.response.filecontent = pdf
+	frappe.local.response.type = "download"

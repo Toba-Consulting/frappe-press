@@ -75,7 +75,16 @@
 						{{ availableCredits || currency + ' 0.00' }}
 					</div>
 				</div>
-				<div class="shrink-0">
+				<div class="shrink-0 flex gap-2">
+					<Button
+						:label="'Payment History'"
+						variant="outline"
+						@click="showMidtransPaymentEventsDialog = true"
+					>
+						<template #prefix>
+							<FeatherIcon class="h-4" name="list" />
+						</template>
+					</Button>
 					<Button
 						:label="'Add credit'"
 						@click="
@@ -158,6 +167,10 @@
 		"
 		@success="() => team.reload()"
 	/>
+	<MidtransPaymentEventsDialog
+		v-if="showMidtransPaymentEventsDialog"
+		v-model="showMidtransPaymentEventsDialog"
+	/>
 </template>
 <script setup>
 import DropdownItem from './DropdownItem.vue';
@@ -165,6 +178,7 @@ import BillingDetailsDialog from './BillingDetailsDialog.vue';
 import AddPrepaidCreditsDialog from './AddPrepaidCreditsDialog.vue';
 import AddCardDialog from './AddCardDialog.vue';
 import ChangeCardDialog from './ChangeCardDialog.vue';
+import MidtransPaymentEventsDialog from './MidtransPaymentEventsDialog.vue';
 import { Dropdown, Button, FeatherIcon, createResource } from 'frappe-ui';
 import {
 	cardBrandIcon,
@@ -186,6 +200,7 @@ const showBillingDetailsDialog = ref(false);
 const showAddPrepaidCreditsDialog = ref(false);
 const showAddCardDialog = ref(false);
 const showChangeCardDialog = ref(false);
+const showMidtransPaymentEventsDialog = ref(false);
 
 const currency = computed(() => (team.doc.currency == 'IDR' ? 'Rp' : '$'));
 
