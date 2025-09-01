@@ -237,18 +237,8 @@ def create_midtrans_direct_payment(payment_method_id, amount, currency="IDR", in
 			currency=currency
 		)
 		
-		# Create payment event record
-		frappe.get_doc({
-			"doctype": "Midtrans Payment Event",
-			"midtrans_transaction_id": response.get("transaction_id"),
-			"midtrans_order_id": order_id,
-			"transaction_status": response.get("transaction_status"),
-			"payment_type": response.get("payment_type"),
-			"event_type": "Transaction",
-			"invoice": invoice_id,
-			"team": team,
-			"midtrans_transaction_object": frappe.as_json(response)
-		}).insert(ignore_permissions=True)
+		# Payment event will be created when webhook is received from Midtrans
+		# Do not create payment event here to avoid duplicates
 		
 		return {
 			"success": True,
@@ -987,20 +977,8 @@ def create_midtrans_ewallet_payment(amount, currency="IDR", ewallet="gopay"):
 						"deeplink": actions[1].get('url') if len(actions) > 1 else None
 					}
 				
-				# Create Midtrans Payment Event record
-				try:
-					frappe.get_doc({
-						"doctype": "Midtrans Payment Event",
-						"midtrans_transaction_id": payment_data.get("transaction_id"),
-						"midtrans_order_id": order_id,
-						"transaction_status": payment_data.get("transaction_status"),
-						"payment_type": ewallet.lower(),
-						"event_type": "Transaction",
-						"team": team,
-						"midtrans_transaction_object": frappe.as_json(payment_data)
-					}).insert(ignore_permissions=True)
-				except Exception as e:
-					frappe.log_error(f"Failed to create Midtrans Payment Event: {str(e)}", "Midtrans Event Error")
+				# Payment event will be created when webhook is received from Midtrans
+				# Do not create payment event here to avoid duplicates
 				
 				return {
 					"success": True,
@@ -1185,22 +1163,8 @@ def create_midtrans_bank_transfer(amount, currency="IDR", bank="bca", payment_me
 								va_number = va['va_number']
 								break
 				
-				# Create Midtrans Payment Event record
-				try:
-					frappe.get_doc({
-						"doctype": "Midtrans Payment Event",
-						"midtrans_transaction_id": payment_data.get("transaction_id"),
-						"midtrans_order_id": order_id,
-						"transaction_status": payment_data.get("transaction_status"),
-						"payment_type": "bank_transfer",
-						"event_type": "Transaction",
-						"team": team,
-						"midtrans_transaction_object": frappe.as_json(payment_data)
-					}).insert(ignore_permissions=True)
-					
-					print(f"DEBUG::::Midtrans Payment Event created successfully")
-				except Exception as e:
-					frappe.log_error(f"Failed to create Midtrans Payment Event: {str(e)}", "Midtrans Event Error")
+				# Payment event will be created when webhook is received from Midtrans
+				# Do not create payment event here to avoid duplicates
 				
 				print(f"DEBUG::::now should be return response")
 				return {

@@ -402,6 +402,11 @@ def verify_midtrans_notification(notification_json, signature_key):
 	signature_string = f"{order_id}{status_code}{gross_amount}{server_key}"
 	hashed = hashlib.sha512(signature_string.encode()).hexdigest()
 	
+	print(f"DEBUG:::signature_string: {signature_string}")
+	print(f"DEBUG:::calculated_hash: {hashed}")
+	print(f"DEBUG:::received_signature: {signature_key}")
+	print(f"DEBUG:::signature_match: {hashed == signature_key}")
+	
 	return hashed == signature_key
 
 

@@ -61,20 +61,27 @@ class MidtransWebhookLog(Document):
 
 	def process_webhook(self):
 		"""Process the webhook notification"""
+		print(f"DEBUG:::its process webhook do")
 		try:
 			from press.press.doctype.midtrans_payment_event.midtrans_payment_event import create_payment_event_from_webhook
 			
 			if not self.payload:
+				print("DEBUG:::No payload found in webhook log")
 				return
 
 			payload_data = frappe.parse_json(self.payload)
+			print(f"DEBUG:::payload_data {payload_data}")
+			print(f"DEBUG:::Processing webhook for transaction_status: {payload_data.get('transaction_status')}")
 			
 			# Create payment event
 			create_payment_event_from_webhook(payload_data)
 			
 			frappe.db.commit()
+			print("DEBUG:::Webhook processing completed successfully")
 			
 		except Exception as e:
+			print(f"DEBUG:::Error in process_webhook: {str(e)}")
+			print(f"DEBUG:::Error traceback: {frappe.get_traceback()}")
 			log_error("Midtrans Webhook Processing Error", webhook_log=self.name, error=str(e))
 			raise
 
@@ -85,6 +92,7 @@ def midtrans_webhook_handler():
 	try:
 		# Get the payload from request
 		data = frappe.request.get_json()
+		print(f"DEBUG::::data webhook handlre {data}")
 		signature_key = frappe.request.headers.get("X-Midtrans-Signature")
 		
 		if not data:
@@ -94,15 +102,35 @@ def midtrans_webhook_handler():
 		if signature_key:
 			if not verify_midtrans_notification(data, signature_key):
 				raise InvalidMidtransWebhookEvent("Invalid webhook signature")
+		else:
+			print("DEBUG:::No signature key provided, skipping signature verification")
 
-		# Create webhook log
+		print(f"DEBUG:::signature key {signature_key}")
+		print(f"DEBUG:::transaction_status {data.get('transaction_status')}")
+		print(f"DEBUG:::order_id {data.get('order_id')}")
+		print(f"DEBUG:::status_code {data.get('status_code')}")
+		print(f"DEBUG:::gross_amount {data.get('gross_amount')}")
+		
+		# Create webhook log with unique name combining payment status and transaction_id
+		transaction_id = data.get('transaction_id', frappe.generate_hash(length=8))
+		payment_status = data.get('transaction_status', 'unknown')
+		
+		# Map settlement to settle for consistent naming
+		if payment_status == 'settlement':
+			payment_status = 'settle'
+		
+		webhook_log_name = f"midtrans-{payment_status}-{transaction_id}"
+		
 		webhook_log = frappe.get_doc({
 			"doctype": "Midtrans Webhook Log",
-			"name": f"midtrans-{data.get('transaction_id', frappe.generate_hash(length=8))}",
+			"name": webhook_log_name,
 			"payload": frappe.as_json(data)
 		})
+
+		print(f"DEBUG::::webhook_log {webhook_log}")
+
 		webhook_log.insert(ignore_permissions=True)
-		
+		print(f"DEBUG::::webhook_log insert success {webhook_log}")
 		# Process the webhook
 		webhook_log.process_webhook()
 		
