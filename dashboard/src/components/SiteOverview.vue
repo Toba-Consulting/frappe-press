@@ -430,8 +430,11 @@ export default {
 			];
 		},
 		currentPlan() {
+			console.log('$team?.doc:', this.$team?.doc)
+			console.log('$site?.doc?.current_plan:', this.$site?.doc?.current_plan)
+			console.log('$site?.doc?.current_plan:', this.$site?.doc?.current_plan.cpu_time_per_day)
+			console.log('$site?.doc?.current_plan:', this.$site?.doc?.is_dedicated_server)
 			if (!this.$site?.doc?.current_plan || !this.$team?.doc) return null;
-
 			const currency = this.$team.doc.currency;
 			return {
 				price:

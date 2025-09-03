@@ -472,6 +472,13 @@ class Site(Document, TagHelpers):
 			frappe.throw("Auto updates can't be disabled for sites on public benches!")
 
 	def validate_site_plan(self):  # noqa: C901
+		# Set the plan field from subscription_plan if it exists
+		if hasattr(self, "subscription_plan") and self.subscription_plan:
+			self.plan = self.subscription_plan
+			# If site has a subscription plan, it's not free
+			if self.free:
+				self.free = False
+			
 		if hasattr(self, "subscription_plan") and self.subscription_plan:
 			"""
 			If `release_groups` in site plan is empty, then site can be deployed in any release group.
@@ -814,6 +821,9 @@ class Site(Document, TagHelpers):
 			# create subscription
 			self.create_subscription(self.subscription_plan)
 			self.reload()
+		elif self.plan:
+			# Create subscription invoice for regular plan
+			self.add_site_to_subscription_invoice(self.plan)
 
 		if hasattr(self, "app_plans") and self.app_plans:
 			for app, plan in self.app_plans.items():
@@ -2173,6 +2183,61 @@ class Site(Document, TagHelpers):
 	def create_subscription(self, plan):
 		# create a site plan change log
 		self._create_initial_site_plan_change(plan)
+		
+		# Create or update subscription invoice immediately
+		self.add_site_to_subscription_invoice(plan)
+
+	def add_site_to_subscription_invoice(self, plan):
+		"""Create or update subscription for this site (follows Stripe billing pattern)"""
+		try:
+			print(f"DEBUG: Creating/updating subscription for site {self.name} with plan {plan}")
+			
+			# Check if subscription already exists for this site
+			existing_subscription = frappe.db.get_value("Subscription", {
+				"team": self.team,
+				"document_type": "Site",
+				"document_name": self.name,
+				"plan_type": "Site Plan"
+			}, "name")
+			
+			if existing_subscription:
+				print(f"DEBUG: Subscription already exists for site {self.name}: {existing_subscription}")
+				subscription = frappe.get_doc("Subscription", existing_subscription)
+				
+				# Update plan if different
+				if subscription.plan != plan:
+					print(f"DEBUG: Updating subscription plan from {subscription.plan} to {plan}")
+					subscription.plan = plan
+					subscription.enabled = True
+					subscription.save(ignore_permissions=True)
+				else:
+					print(f"DEBUG: Subscription plan already correct, ensuring it's enabled")
+					if not subscription.enabled:
+						subscription.enabled = True
+						subscription.save(ignore_permissions=True)
+			else:
+				print(f"DEBUG: Creating new subscription for site {self.name}")
+				subscription = frappe.get_doc({
+					"doctype": "Subscription",
+					"team": self.team,
+					"document_type": "Site",
+					"document_name": self.name,
+					"plan_type": "Site Plan",
+					"plan": plan,
+					"interval": "Daily",
+					"enabled": True,
+					"site": self.name
+				})
+				subscription.insert(ignore_permissions=True)
+				print(f"DEBUG: Created new subscription: {subscription.name}")
+			
+			print(f"DEBUG: Subscription setup complete - daily usage records will be created automatically by scheduled job")
+			
+		except Exception as e:
+			import traceback
+			print(f"DEBUG: Error creating subscription: {str(e)}")
+			print(f"DEBUG: Traceback: {traceback.format_exc()}")
+			frappe.log_error(f"Failed to create subscription for site {self.name}: {str(e)}")
 
 	def update_subscription(self):
 		if self.status in ["Archived", "Broken", "Suspended"]:

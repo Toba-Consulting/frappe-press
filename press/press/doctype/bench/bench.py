@@ -1298,11 +1298,13 @@ def archive_obsolete_benches_for_server(benches: Iterable[dict]):
 
 
 def sync_benches():
+	print(f"DEBUG:::SYNC BENCHES RUNNING >>>>>>>>")
 	benches = frappe.get_all("Bench", {"status": "Active"}, pluck="name")
+	print(f"DEBUG:::BENCHES >>>>>>>> {benches}")
 	for bench in benches:
 		frappe.enqueue(
 			"press.press.doctype.bench.bench.sync_bench",
-			queue="sync",
+			queue="long",
 			name=bench,
 			job_id=f"sync_bench:{bench}",
 			deduplicate=True,
@@ -1312,6 +1314,7 @@ def sync_benches():
 
 
 def sync_bench(name):
+	print(f"DEBUG:::SYNC BENCH RUNNING >>>>>>>>")
 	bench = Bench("Bench", name)
 	try:
 		active_archival_jobs = frappe.get_all(

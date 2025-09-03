@@ -456,11 +456,18 @@ def get(name, timezone, duration="7d"):
 	timespan, timegrain = TIMESPAN_TIMEGRAIN_MAP[duration]
 
 	request_data = get_usage(name, "request", timezone, timespan, timegrain)
+	print(f"DEBUG:::uptime name {name}")
+	print(f"DEBUG:::uptime timezone {timezone}")
+	print(f"DEBUG:::uptime timespan {timespan}")
+	print(f"DEBUG:::uptime timegrain {timegrain}")
 	uptime_data = get_uptime(name, timezone, timespan, timegrain)
 
 	plan = frappe.get_cached_doc("Site", name).plan
 	plan_limit = get_plan_config(plan).get("rate_limit", {}).get("limit") if plan else 0
-
+	print(f"DEBUG:::request_data monitor {request_data}")
+	print(f"DEBUG:::uptime_data monitor {uptime_data}")
+	print(f"DEBUG:::plan monitor {plan}")
+	print(f"DEBUG:::plan_limit monitor {plan_limit}")
 	return {
 		"usage_counter": [{"value": r.max, "date": r.date} for r in request_data],
 		"request_count": [{"value": r.count, "date": r.date} for r in request_data],
@@ -562,7 +569,7 @@ def daily_usage(name, timezone):
 	timespan = 7 * 24 * 60 * 60
 	timegrain = 24 * 60 * 60
 	request_data = get_usage(name, "request", timezone, timespan, timegrain)
-
+	print(f"DEBUG:::request_data {request_data}")
 	plan = frappe.get_cached_doc("Site", name).plan
 
 	return {
@@ -613,6 +620,12 @@ def get_uptime(site, timezone, timespan, timegrain):
 		"end": end.timestamp(),
 		"step": f"{timegrain}s",
 	}
+
+	print(f"DEBUG:::get_uptime url {url}")
+	print(f"DEBUG:::get_uptime password {password}")
+	print(f"DEBUG:::get_uptime end {end.timestamp()}")
+	print(f"DEBUG:::get_uptime start {start.timestamp()}")
+	print(f"DEBUG:::get_uptime query {query}")
 
 	response = requests.get(url, params=query, auth=("frappe", password)).json()
 
