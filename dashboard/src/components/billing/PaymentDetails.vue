@@ -76,15 +76,23 @@
 					</div>
 				</div>
 				<div class="shrink-0 flex gap-2">
-					<Button
-						:label="'Payment History'"
-						variant="outline"
-						@click="showMidtransPaymentEventsDialog = true"
-					>
-						<template #prefix>
-							<FeatherIcon class="h-4" name="list" />
-						</template>
-					</Button>
+					<div class="relative">
+						<Button
+							:label="'Payment History'"
+							variant="outline"
+							@click="showMidtransPaymentEventsDialog = true"
+						>
+							<template #prefix>
+								<FeatherIcon class="h-4" name="list" />
+							</template>
+						</Button>
+						<span
+							v-if="pendingTransactionsCount > 0"
+							class="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-5 h-5"
+						>
+							{{ pendingTransactionsCount }}
+						</span>
+					</div>
 					<Button
 						:label="'Add credit'"
 						@click="
@@ -215,6 +223,20 @@ const changePaymentMode = createResource({
 	onSuccess: () => setTimeout(() => team.reload(), 1000),
 });
 
+const paymentEvents = createResource({
+	url: 'frappe.client.get_list',
+	params: {
+		doctype: 'Midtrans Payment Event',
+		fields: ['payment_status'],
+		filters: {
+			team: team.doc.name,
+			payment_status: 'Pending'
+		},
+		limit: 100
+	},
+	auto: true
+});
+
 const billingDetailsSummary = computed(() => {
 	let _billingDetails = billingDetails.data;
 	if (!_billingDetails) return '';
@@ -232,6 +254,10 @@ const billingDetailsSummary = computed(() => {
 	]
 		.filter(Boolean)
 		.join(', ');
+});
+
+const pendingTransactionsCount = computed(() => {
+	return paymentEvents.data ? paymentEvents.data.length : 0;
 });
 
 const paymentModeOptions = [

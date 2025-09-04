@@ -4,8 +4,8 @@
 			<div class="px-4 pb-4">
 				<div class="mb-6">
 					<div class="flex items-center space-x-3 mb-4">
-						<div class="w-12 h-12 rounded-lg flex items-center justify-center" :class="getBankStyling(paymentData?.bank).containerClass">
-							<span class="text-white font-bold">{{ paymentData?.bank || 'BCA' }}</span>
+						<div class="w-12 h-12 rounded-lg flex items-center justify-center bg-white border border-gray-200">
+							<component :is="bankIconComponent" class="w-10 h-10" />
 						</div>
 						<div>
 							<h3 class="text-xl font-semibold text-gray-800">{{ getBankDisplayName() }} Bank Transfer</h3>
@@ -154,6 +154,11 @@
 import { Dialog, Button, call } from 'frappe-ui';
 import { ref, inject, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import BCAIcon from '../icons/BCAIcon.vue';
+import BNIIcon from '../icons/BNIIcon.vue';
+import BRIIcon from '../icons/BRIIcon.vue';
+import CIMBIcon from '../icons/CIMBIcon.vue';
+import MandiriIcon from '../icons/MandiriIcon.vue';
 
 const props = defineProps({
 	modelValue: {
@@ -175,6 +180,18 @@ const bankInstructions = ref([]);
 const show = computed({
 	get: () => props.modelValue,
 	set: (value) => emit('update:modelValue', value)
+});
+
+const bankIconComponent = computed(() => {
+	const bankCode = props.paymentData?.bank?.toUpperCase();
+	const iconMap = {
+		'BCA': BCAIcon,
+		'BNI': BNIIcon,
+		'BRI': BRIIcon,
+		'CIMB': CIMBIcon,
+		'MANDIRI': MandiriIcon
+	};
+	return iconMap[bankCode] || BCAIcon; // Default to BCA if bank not found
 });
 
 const copyToClipboard = async (text) => {

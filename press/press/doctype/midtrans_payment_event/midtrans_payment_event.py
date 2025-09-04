@@ -83,6 +83,8 @@ class MidtransPaymentEvent(Document):
 			return
 			
 		try:
+			# Cancel any existing pending invoices for the same team before creating new one
+			self.cancel_existing_pending_invoices()
 			# Parse transaction data to get amount
 			transaction_data = frappe.parse_json(self.midtrans_transaction_object) if self.midtrans_transaction_object else {}
 			gross_amount = transaction_data.get("gross_amount", 0)
@@ -183,6 +185,60 @@ class MidtransPaymentEvent(Document):
 		except Exception as e:
 			frappe.log_error(f"Failed to create credit balance transaction for {self.name}: {str(e)}")
 
+	def cancel_existing_pending_invoices(self):
+		"""Cancel existing pending Prepaid Credits invoices and payment events for the same team when creating a new one"""
+		if not self.team:
+			return
+			
+		try:
+			# Find existing pending Prepaid Credits invoices for the same team
+			pending_invoices = frappe.get_all("Invoice", 
+				filters={
+					"team": self.team,
+					"type": "Prepaid Credits",
+					"status": "Unpaid"
+				},
+				fields=["name"]
+			)
+			
+			# Set each pending invoice to Empty
+			for invoice_data in pending_invoices:
+				try:
+					invoice = frappe.get_doc("Invoice", invoice_data.name)
+					invoice.status = "Empty"
+					invoice.save(ignore_permissions=True)
+					frappe.db.commit()
+					print(f"DEBUG:::Set pending invoice {invoice_data.name} to Empty")
+					
+				except Exception as e:
+					frappe.log_error(f"Failed to set invoice {invoice_data.name} to Empty: {str(e)}")
+			
+			# Find and cancel existing pending payment events for the same team (excluding current one)
+			pending_payment_events = frappe.get_all("Midtrans Payment Event",
+				filters={
+					"team": self.team,
+					"payment_status": "Pending",
+					"name": ["!=", self.name]
+				},
+				fields=["name"]
+			)
+			
+			# Cancel each pending payment event
+			for event_data in pending_payment_events:
+				try:
+					payment_event = frappe.get_doc("Midtrans Payment Event", event_data.name)
+					payment_event.payment_status = "Unpaid"
+					payment_event.transaction_status = "cancel"
+					payment_event.save(ignore_permissions=True)
+					frappe.db.commit()
+					print(f"DEBUG:::Cancelled pending payment event {event_data.name}")
+					
+				except Exception as e:
+					frappe.log_error(f"Failed to cancel payment event {event_data.name}: {str(e)}")
+					
+		except Exception as e:
+			frappe.log_error(f"Failed to cancel existing pending invoices and payment events for team {self.team}: {str(e)}")
+
 	def cancel_other_pending_transactions(self):
 		"""Cancel other pending Midtrans payment events for the same team when one gets paid"""
 		if not self.team:
@@ -211,7 +267,7 @@ class MidtransPaymentEvent(Document):
 					if payment_event.invoice:
 						invoice = frappe.get_doc("Invoice", payment_event.invoice)
 						if invoice.status in ["Draft", "Unpaid"]:
-							invoice.status = "Cancelled"
+							invoice.status = "Empty"
 							invoice.save(ignore_permissions=True)
 							
 					frappe.db.commit()

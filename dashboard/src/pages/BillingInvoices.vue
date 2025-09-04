@@ -27,16 +27,23 @@
 				}
 			"
 		/>
+		<MidtransPaymentInstructionsDialog
+			v-if="showPaymentInstructionsDialog"
+			v-model="showPaymentInstructionsDialog"
+			:paymentData="selectedPaymentData"
+			@paymentCompleted="handlePaymentCompleted"
+		/>
 	</div>
 </template>
 <script>
 import { h } from 'vue';
-import { Button } from 'frappe-ui';
+import { Button, call } from 'frappe-ui';
 import ObjectList from '../components/ObjectList.vue';
 import InvoiceTable from '../components/InvoiceTable.vue';
 import { userCurrency, date } from '../utils/format';
 import { confirmDialog, icon, renderInDialog } from '../utils/components';
 import AddPrepaidCreditsDialog from '../components/billing/AddPrepaidCreditsDialog.vue';
+import MidtransPaymentInstructionsDialog from '../components/billing/MidtransPaymentInstructionsDialog.vue';
 import { dayjsLocal } from '../utils/dayjs';
 import router from '../router';
 
@@ -47,6 +54,7 @@ export default {
 		ObjectList,
 		InvoiceTable,
 		AddPrepaidCreditsDialog,
+		MidtransPaymentInstructionsDialog,
 	},
 	data() {
 		return {
@@ -54,6 +62,8 @@ export default {
 			showInvoice: null,
 			showBuyPrepaidCreditsDialog: false,
 			minimumAmount: 0,
+			showPaymentInstructionsDialog: false,
+			selectedPaymentData: null,
 		};
 	},
 	computed: {
@@ -191,8 +201,8 @@ export default {
 												`/api/method/press.api.client.run_doc_method?dt=Invoice&dn=${row.name}&method=stripe_payment_url`,
 											);
 										} else {
-											this.showBuyPrepaidCreditsDialog = true;
-											this.minimumAmount = row.amount_due;
+											// For all non-Stripe payments, check for pending Midtrans payments first
+											this.checkPendingPayment(row);
 										}
 									},
 								};
@@ -240,6 +250,68 @@ export default {
 				return '';
 			}
 			return userCurrency(value);
+		},
+		async checkPendingPayment(invoice) {
+			try {
+				// Check for pending Midtrans payment events for this invoice
+				const response = await call('frappe.client.get_list', {
+					doctype: 'Midtrans Payment Event',
+					fields: ['name', 'midtrans_transaction_object', 'payment_status'],
+					filters: {
+						invoice: invoice.name,
+						payment_status: 'Pending'
+					},
+					order_by: 'creation desc',
+					limit: 1
+				});
+
+				if (response && response.length > 0) {
+					const pendingPayment = response[0];
+					this.showPaymentInstructions(pendingPayment);
+				} else {
+					// No pending payment found, show buy credits dialog
+					this.showBuyPrepaidCreditsDialog = true;
+					this.minimumAmount = invoice.amount_due;
+				}
+			} catch (error) {
+				console.error('Error checking pending payment:', error);
+				// Fallback to buy credits dialog
+				this.showBuyPrepaidCreditsDialog = true;
+				this.minimumAmount = invoice.amount_due;
+			}
+		},
+		showPaymentInstructions(paymentEvent) {
+			try {
+				if (paymentEvent.midtrans_transaction_object) {
+					const transactionData = JSON.parse(paymentEvent.midtrans_transaction_object);
+					
+					// Only show dialog for bank_transfer type
+					if (transactionData.payment_type === 'bank_transfer' && transactionData.va_numbers && transactionData.va_numbers.length > 0) {
+						const vaNumber = transactionData.va_numbers[0];
+						this.selectedPaymentData = {
+							bank: vaNumber.bank.toUpperCase(),
+							va_number: vaNumber.va_number,
+							amount: parseInt(transactionData.gross_amount),
+							transaction_id: transactionData.transaction_id,
+							status: transactionData.transaction_status,
+							expiry_time: transactionData.expiry_time
+						};
+						this.showPaymentInstructionsDialog = true;
+					} else {
+						// For other payment types, show alert
+						alert(`Pending ${transactionData.payment_type} payment found. Please complete your existing payment before creating a new one.`);
+					}
+				}
+			} catch (e) {
+				console.error('Error parsing payment data:', e);
+				alert('Found pending payment but unable to show instructions. Please check Payment History.');
+			}
+		},
+		handlePaymentCompleted() {
+			// Refresh the page or handle payment completion
+			this.showPaymentInstructionsDialog = false;
+			// You might want to reload the invoice list here
+			window.location.reload();
 		},
 	},
 };
