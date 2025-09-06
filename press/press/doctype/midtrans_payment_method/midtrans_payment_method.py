@@ -45,6 +45,7 @@ class MidtransPaymentMethod(Document):
 		"expiry_month", 
 		"expiry_year",
 		"is_default",
+		"name_on_card",
 	]
 
 	def after_insert(self):

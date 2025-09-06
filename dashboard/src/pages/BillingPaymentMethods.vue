@@ -9,6 +9,8 @@ import ObjectList from '../components/ObjectList.vue';
 import { Badge, FeatherIcon, Tooltip } from 'frappe-ui';
 import { toast } from 'vue-sonner';
 import { confirmDialog, renderDialog, icon } from '../utils/components';
+
+
 export default {
 	name: 'BillingPaymentMethods',
 	props: ['tab'],
@@ -18,20 +20,25 @@ export default {
 	computed: {
 		options() {
 			return {
-				doctype: 'Stripe Payment Method',
+				doctype: 'Midtrans Payment Method',
 				fields: [
 					'name',
 					'is_default',
 					'expiry_month',
 					'expiry_year',
 					'brand',
-					'stripe_mandate_id',
+					'midtrans_token',
 				],
 				emptyStateMessage: 'No cards added.',
 				columns: [
 					{
 						label: 'Name on Card',
 						fieldname: 'name_on_card',
+						format(value, row) {
+							console.log('name_on_card value:', value);
+							console.log('full row:', row);
+							return `${value || 'No name'}`;
+						}
 					},
 					{
 						label: 'Card',
@@ -63,12 +70,12 @@ export default {
 						},
 					},
 					{
-						label: 'Mandated',
+						label: 'Tokenized',
 						type: 'Component',
 						width: 1,
 						align: 'center',
 						component({ row }) {
-							if (row.stripe_mandate_id) {
+							if (row.midtrans_token) {
 								return h(FeatherIcon, {
 									name: 'check-circle',
 									class: 'h-4 w-4 text-green-600',
@@ -162,10 +169,7 @@ export default {
 							prefix: icon('plus'),
 						},
 						onClick: () => {
-							let StripeCardDialog = defineAsyncComponent(
-								() => import('../components/StripeCardDialog.vue'),
-							);
-							renderDialog(StripeCardDialog);
+							toast.info('Cards....')
 						},
 					};
 				},

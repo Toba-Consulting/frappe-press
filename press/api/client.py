@@ -82,6 +82,7 @@ ALLOWED_DOCTYPES = [
 	"Partner Payment Payout",
 	"Deploy Candidate Build",
 	"Account Request",
+	"Midtrans Payment Method"
 ]
 
 ALLOWED_DOCTYPES_FOR_SUPPORT = [
