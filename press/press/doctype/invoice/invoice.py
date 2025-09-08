@@ -263,7 +263,7 @@ class Invoice(Document):
 		self.status = "Unpaid"
 		self.update_item_descriptions()
 
-		if self.amount_due > 0:
+		if self.amount_due > 0 and self.payment_mode == "Prepaid Credits":
 			self.apply_credit_balance()
 
 		if self.amount_due == 0:
@@ -293,12 +293,12 @@ class Invoice(Document):
 			if self.payment_mode == "Prepaid Credits":
 				self.add_comment(
 					"Comment",
-					"Not enough credits for this invoice. Change payment mode to Card to pay using Stripe.",
+					"Not enough credits for this invoice. Change payment mode to Card to pay using payment gateway.",
 				)
 			# we shouldn't depend on payment_mode to decide whether to create stripe invoice or not
 			# there should be a separate field in team to decide whether to create automatic invoices or not
 			if self.payment_mode == "Card":
-				self.create_stripe_invoice()
+				self.create_payment_gateway_invoice()
 
 		if self.status == "Paid":
 			self.submit()
@@ -459,6 +459,167 @@ class Invoice(Document):
 		if not mandate_id:
 			return ""
 		return mandate_id
+
+	def create_payment_gateway_invoice(self):
+		"""Create invoice payment using the default payment gateway"""
+		default_gateway = frappe.db.get_single_value("Press Settings", "default_payment_gateway") or "Midtrans"
+		
+		try:
+			if default_gateway == "Stripe":
+				return self.create_stripe_invoice()
+			elif default_gateway == "Midtrans":
+				return self.create_midtrans_invoice()
+			else:
+				frappe.throw(f"Unsupported payment gateway: {default_gateway}")
+		except Exception as e:
+			frappe.log_error(f"Payment gateway invoice creation failed: {str(e)}", "Gateway Invoice Error")
+			self.add_comment(
+				"Comment",
+				f"Failed to create payment gateway invoice using {default_gateway}: {str(e)}"
+			)
+
+	def create_midtrans_invoice(self):
+		"""Create automatic payment using team's default Midtrans payment method"""
+		# Get team's default Midtrans payment method
+		default_payment_method = frappe.db.get_value(
+			"Midtrans Payment Method", 
+			{"team": self.team, "is_default": 1}, 
+			"name"
+		)
+		
+		if not default_payment_method:
+			# No default payment method, try to get any available payment method
+			payment_methods = frappe.db.get_all(
+				"Midtrans Payment Method",
+				filters={"team": self.team},
+				fields=["name"],
+				limit=1
+			)
+			
+			if not payment_methods:
+				self.add_comment(
+					"Comment",
+					"No Midtrans payment method available. Please add a payment method to enable automatic payments."
+				)
+				return
+			
+			default_payment_method = payment_methods[0].name
+			# Set this as default for future use
+			frappe.db.set_value("Midtrans Payment Method", default_payment_method, "is_default", 1)
+
+		# Generate unique order ID for this invoice payment
+		import datetime
+		timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+		order_id = f"INV-{self.name}-{timestamp}"
+
+		try:
+			# Get the saved payment method details
+			payment_method_doc = frappe.get_doc("Midtrans Payment Method", default_payment_method)
+			saved_token = payment_method_doc.midtrans_token
+			
+			if not saved_token:
+				self.add_comment(
+					"Comment",
+					f"Payment method {default_payment_method} does not have a saved token. Cannot process automatic payment."
+				)
+				return
+			
+			# Create Midtrans payment using saved token
+			from press.utils.billing import get_midtrans, format_midtrans_money
+			import requests
+			import json
+			
+			midtrans = get_midtrans()
+			amount = format_midtrans_money(float(self.amount_due_with_tax), self.currency)
+			
+			# Prepare request data for saved card payment
+			request_data = {
+				"payment_type": "credit_card",
+				"transaction_details": {
+					"order_id": order_id,
+					"gross_amount": amount
+				},
+				"credit_card": {
+					"token_id": saved_token,
+					"secure": True
+				}
+			}
+			
+			headers = {
+				"Accept": "application/json",
+				"Content-Type": "application/json",
+				"Authorization": midtrans["auth_header"]
+			}
+			
+			# Use appropriate API URL based on sandbox/production mode
+			base_url = midtrans['sandbox_url'] if midtrans['is_sandbox'] else midtrans['production_url']
+			url = f"{base_url}/charge"
+			
+			response = requests.post(url, headers=headers, data=json.dumps(request_data))
+			response_data = response.json()
+			
+			# Set response for further processing
+			response = response_data
+			
+			# Check if payment was created successfully
+			if response.get("status_code") == "201":
+				# Create Midtrans Payment Event to track this transaction
+				payment_event = frappe.get_doc({
+					"doctype": "Midtrans Payment Event",
+					"team": self.team,
+					"invoice": self.name,
+					"midtrans_order_id": order_id,
+					"midtrans_transaction_id": response.get("transaction_id"),
+					"midtrans_transaction_object": frappe.as_json(response),
+					"transaction_status": response.get("transaction_status"),
+					"event_type": "Transaction"
+				})
+				payment_event.insert(ignore_permissions=True)
+				
+				# If payment is immediately successful (capture/settlement)
+				if response.get("transaction_status") in ["capture", "settlement"]:
+					self.status = "Paid"
+					self.add_comment(
+						"Info",
+						f"Midtrans payment successful with transaction ID: {response.get('transaction_id')}"
+					)
+				else:
+					# Payment is pending or processing
+					self.status = "Invoice Created"
+					self.add_comment(
+						"Info",
+						f"Midtrans payment initiated with transaction ID: {response.get('transaction_id')}, status: {response.get('transaction_status')}"
+					)
+				
+				# Update team's default payment method reference
+				team_doc = frappe.get_doc("Team", self.team)
+				if not team_doc.default_payment_method or team_doc.default_payment_method != default_payment_method:
+					team_doc.default_payment_method = default_payment_method
+					team_doc.save(ignore_permissions=True)
+				
+				self.save()
+				return response
+			else:
+				# Payment creation failed
+				error_message = response.get("status_message", "Unknown error occurred")
+				error_messages = response.get("error_messages", [])
+				
+				full_error = error_message
+				if error_messages:
+					full_error += f" Details: {', '.join(error_messages)}"
+				
+				self.add_comment(
+					"Comment",
+					f"Midtrans payment creation failed: {full_error}"
+				)
+				frappe.log_error(f"Midtrans payment failed for invoice {self.name}: {full_error}", "Midtrans Payment Error")
+				
+		except Exception as e:
+			frappe.log_error(f"Midtrans invoice creation error: {str(e)}", "Midtrans Error")
+			self.add_comment(
+				"Comment",
+				f"Midtrans payment creation failed: {str(e)}"
+			)
 
 	def find_stripe_invoice_if_not_set(self):
 		if self.stripe_invoice_id:

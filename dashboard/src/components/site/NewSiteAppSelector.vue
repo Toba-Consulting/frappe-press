@@ -67,6 +67,7 @@ export default {
 		},
 		publicApps() {
 			if (!this.availableApps) return;
+			console.log(this.availableApps)
 			const publicApps = this.availableApps.filter(
 				(app) => (app.public || app.plans?.length) && app.image,
 			);
