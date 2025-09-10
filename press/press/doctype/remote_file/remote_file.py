@@ -167,6 +167,8 @@ class RemoteFile(Document):
 		if not self.bucket:
 			return None
 
+		print(f"DEBUG:::self.bucket {self.bucket}")
+
 		if self.bucket == frappe.db.get_single_value("Press Settings", "remote_uploads_bucket"):
 			access_key_id = frappe.db.get_single_value("Press Settings", "remote_access_key_id")
 			secret_access_key = get_decrypted_password(
@@ -182,13 +184,28 @@ class RemoteFile(Document):
 		else:
 			return None
 
-		return client(
-			"s3",
-			aws_access_key_id=access_key_id,
-			aws_secret_access_key=secret_access_key,
-			region_name=frappe.db.get_value("Backup Bucket", self.bucket, "region")
-			or frappe.db.get_single_value("Press Settings", "backup_region"),
+		# Get region and endpoint URL for the bucket
+		region_name = (
+			frappe.db.get_value("Backup Bucket", self.bucket, "region")
+			or frappe.db.get_single_value("Press Settings", "backup_region")
 		)
+		print(f"DEBUG:::region_name {region_name}")
+		# Check for custom endpoint URL (for DigitalOcean Spaces, etc.)
+		endpoint_url = frappe.db.get_value("Backup Bucket", self.bucket, "endpoint_url")
+		print(f"DEBUG:::endpoint {endpoint_url}")
+		client_kwargs = {
+			"service_name": "s3",
+			"aws_access_key_id": access_key_id,
+			"aws_secret_access_key": secret_access_key,
+			"region_name": region_name,
+		}
+		print(f"DEBUG:::client {client_kwargs}")
+		
+		# Add endpoint_url if it exists (for S3-compatible services like DigitalOcean Spaces)
+		if endpoint_url:
+			client_kwargs["endpoint_url"] = endpoint_url
+		
+		return client(**client_kwargs)
 
 	@property
 	def download_link(self):

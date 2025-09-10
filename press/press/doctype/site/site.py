@@ -1058,6 +1058,9 @@ class Site(Document, TagHelpers):
 	@dashboard_whitelist()
 	@site_action(["Active", "Broken"])
 	def restore_site(self, skip_failing_patches=False):
+		print(f"DEBUG:::{self.remote_database_file}")
+		doc = frappe.get_doc("Remote File", self.remote_database_file)
+		print(f"DEBUG:::{doc}")
 		if (
 			self.remote_database_file
 			and not frappe.get_doc("Remote File", self.remote_database_file).exists()

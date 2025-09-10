@@ -541,6 +541,10 @@ class Agent:
 					"SECRET_KEY": settings.get_password("offsite_backups_secret_access_key"),
 					"REGION": backup_bucket.get("region") if isinstance(backup_bucket, dict) else "",
 				}
+				
+				# Add endpoint URL for DigitalOcean Spaces and other S3-compatible services
+				if isinstance(backup_bucket, dict) and backup_bucket.get("endpoint_url"):
+					auth["ENDPOINT_URL"] = backup_bucket.get("endpoint_url")
 				data.update({"offsite": {"bucket": bucket_name, "auth": auth, "path": backups_path}})
 			else:
 				log_error("Offsite Backups aren't set yet")

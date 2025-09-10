@@ -1966,14 +1966,26 @@ def get_upload_link(file, parts=1):
 	object_name = get_remote_key(file)
 	parts = int(parts)
 
-	s3_client = client(
-		"s3",
-		aws_access_key_id=frappe.db.get_single_value("Press Settings", "remote_access_key_id"),
-		aws_secret_access_key=get_decrypted_password(
+	# Get region and endpoint URL for the bucket
+	region_name = frappe.db.get_single_value("Press Settings", "backup_region") or "ap-south-1"
+	
+	# Check if this bucket is a custom bucket with endpoint URL (for DigitalOcean Spaces, etc.)
+	endpoint_url = frappe.db.get_value("Backup Bucket", bucket_name, "endpoint_url")
+	
+	client_kwargs = {
+		"service_name": "s3",
+		"aws_access_key_id": frappe.db.get_single_value("Press Settings", "remote_access_key_id"),
+		"aws_secret_access_key": get_decrypted_password(
 			"Press Settings", "Press Settings", "remote_secret_access_key"
 		),
-		region_name="ap-south-1",
-	)
+		"region_name": region_name,
+	}
+	
+	# Add endpoint_url if it exists (for S3-compatible services like DigitalOcean Spaces)
+	if endpoint_url:
+		client_kwargs["endpoint_url"] = endpoint_url
+	
+	s3_client = client(**client_kwargs)
 	try:
 		# The response contains the presigned URL and required fields
 		if parts > 1:
