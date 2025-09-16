@@ -114,8 +114,7 @@ class MonitorServer(BaseServer):
 					"monitoring_password": cluster.get_password("monitoring_password"),
 				}
 			)
-		#press_url = frappe.utils.get_url()
-		press_url = "https://b41277a2362c.ngrok-free.app"
+		press_url = frappe.utils.get_url()
 		settings = frappe.get_single("Press Settings")
 		monitor_token = settings.monitor_token
 		press_monitoring_password = settings.get_password("press_monitoring_password")

@@ -71,7 +71,7 @@
   {
    "depends_on": "eval:doc.dns_provider=='Cloudflare'",
    "fieldname": "cloudflare_api_key",
-   "fieldtype": "Data",
+   "fieldtype": "Password",
    "label": "Cloudflare API Key"
   }
  ],
@@ -108,7 +108,7 @@
    "link_fieldname": "domain"
   }
  ],
- "modified": "2025-08-21 14:51:17.218306",
+ "modified": "2025-09-11 14:24:17.989701",
  "modified_by": "Administrator",
  "module": "Press",
  "name": "Root Domain",
