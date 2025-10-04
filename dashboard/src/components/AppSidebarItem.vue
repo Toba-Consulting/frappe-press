@@ -3,18 +3,22 @@
 		<a
 			:href="href"
 			@click="navigate"
-			class="flex items-center rounded px-2 py-1 text-gray-800 transition"
+			class="flex items-center rounded px-2 py-1 text-gray-800 transition relative"
 			:class="[
-				item.isActive ? 'bg-white shadow-sm' : 'hover:bg-gray-100',
+				item.isActive ? 'bg-gray-100' : 'hover:bg-gray-50',
 				item.disabled ? 'pointer-events-none opacity-50' : '',
 				$attrs.class,
 			]"
 		>
+			<div
+				v-if="item.isActive"
+				class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-l"
+			></div>
 			<div class="flex w-full items-center space-x-2">
 				<span class="grid h-5 w-6 place-items-center">
 					<component :is="item.icon" class="h-4 w-4 text-gray-500" />
 				</span>
-				<span class="text-sm">{{ item.name }}</span>
+				<span class="text-sm font-medium">{{ item.name }}</span>
 				<component :is="item.badge" />
 			</div>
 		</a>

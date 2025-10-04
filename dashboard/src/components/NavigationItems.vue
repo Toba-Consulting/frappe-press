@@ -18,7 +18,15 @@ import Activity from '~icons/lucide/activity';
 import Logs from '~icons/lucide/scroll-text';
 import Globe from '~icons/lucide/globe';
 import Shield from '~icons/lucide/shield';
-import Notification from '~icons/lucide/inbox';
+import NotificationIcon from '@/components/icons/navigate_item/NotificationIcon.vue';
+import SiteIcon from '@/components/icons/navigate_item/SiteIcon.vue';
+import BenchIcon from '@/components/icons/navigate_item/BenchIcon.vue';
+import BenchGroupIcon from '@/components/icons/navigate_item/BenchGroupIcon.vue';
+import MarketplaceIcon from '@/components/icons/navigate_item/MarketplaceIcon.vue';
+import DevIcon from '@/components/icons/navigate_item/DevIcon.vue';
+import BillingIcon from '@/components/icons/navigate_item/BillingIcon.vue';
+import PartnershipIcon from '@/components/icons/navigate_item/PartnershipIcon.vue';
+import SettingIcon from '@/components/icons/navigate_item/SettingIcon.vue';
 import Code from '~icons/lucide/code';
 import FileSearch from '~icons/lucide/file-search';
 import { unreadNotificationsCount } from '../data/notifications';
@@ -48,7 +56,7 @@ export default {
 				},
 				{
 					name: 'Notifications',
-					icon: () => h(Notification),
+					icon: () => h(NotificationIcon),
 					route: '/notifications',
 					isActive: routeName === 'Press Notification List',
 					condition: onboardingComplete && !isSaasUser,
@@ -69,7 +77,7 @@ export default {
 				},
 				{
 					name: 'Sites',
-					icon: () => h(PanelTopInactive),
+					icon: () => h(SiteIcon),
 					route: '/sites',
 					isActive:
 						['Site List', 'Site Detail', 'New Site'].includes(routeName) ||
@@ -78,7 +86,7 @@ export default {
 				},
 				{
 					name: 'Benches',
-					icon: () => h(Package),
+					icon: () => h(BenchIcon),
 					route: '/benches',
 					isActive: routeName.startsWith('Bench'),
 					condition: this.$team.doc?.is_desk_user,
@@ -86,7 +94,7 @@ export default {
 				},
 				{
 					name: 'Bench Groups',
-					icon: () => h(Boxes),
+					icon: () => h(BenchGroupIcon),
 					route: onboardingComplete ? '/groups' : '/enable-bench-groups',
 					isActive:
 						[
@@ -112,7 +120,7 @@ export default {
 				},*/
 				{
 					name: 'Marketplace',
-					icon: () => h(App),
+					icon: () => h(MarketplaceIcon),
 					route: '/apps',
 					isActive: routeName.startsWith('Marketplace'),
 					condition:
@@ -122,7 +130,7 @@ export default {
 				},
 				{
 					name: 'Dev Tools',
-					icon: () => h(Code),
+					icon: () => h(DevIcon),
 					route: '/devtools',
 					condition: onboardingComplete && !isSaasUser,
 					disabled: enforce2FA,
@@ -164,7 +172,7 @@ export default {
 				},
 				{
 					name: 'Billing',
-					icon: () => h(WalletCards),
+					icon: () => h(BillingIcon),
 					route: '/billing',
 					isActive: routeName.startsWith('Billing'),
 					condition:
@@ -173,7 +181,7 @@ export default {
 				},
 				{
 					name: 'Partnership',
-					icon: () => h(Globe),
+					icon: () => h(PartnershipIcon),
 					route: '/partners',
 					isActive: routeName === 'Partnership',
 					/*condition: Boolean(this.$team.doc.erpnext_partner),*/
@@ -181,7 +189,7 @@ export default {
 				},
 				{
 					name: 'Settings',
-					icon: () => h(Settings),
+					icon: () => h(SettingIcon),
 					route: '/settings',
 					isActive: routeName.startsWith('Settings'),
 					disabled: enforce2FA,
