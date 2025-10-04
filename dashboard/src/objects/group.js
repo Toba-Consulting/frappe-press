@@ -43,6 +43,9 @@ export default {
 	list: {
 		route: '/groups',
 		title: 'Bench Groups',
+		component: defineAsyncComponent(
+			() => import('../components/group/BenchGroupGridList.vue'),
+		),
 		fields: [{ apps: ['app'] }],
 		searchField: 'title',
 		filterControls() {

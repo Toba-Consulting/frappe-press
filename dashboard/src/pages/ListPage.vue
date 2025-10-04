@@ -44,7 +44,12 @@
 				v-if="hasUnpaidInvoices > 0 && $team.doc.payment_mode == 'Prepaid Credits'"
 				:amount="hasUnpaidInvoices"
 			/>
-			<ObjectList :options="listOptions" />
+			<component
+				v-if="object.list.component"
+				:is="object.list.component"
+				:options="listOptions"
+			/>
+			<ObjectList v-else :options="listOptions" />
 		</div>
 	</div>
 </template>
