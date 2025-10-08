@@ -107,6 +107,9 @@ function getList() {
 	return {
 		route: '/benches',
 		title: 'Benches',
+		component: defineAsyncComponent(
+			() => import('../components/bench/BenchGridList.vue')
+		),
 		fields: [
 			'group.title as group_title',
 			'cluster.name as cluster_name',

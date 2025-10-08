@@ -1,53 +1,65 @@
 <template>
-	<Header class="sticky top-0 z-10 bg-white">
-		<div class="w-full sm:flex sm:items-center sm:justify-between">
-			<div class="flex items-center space-x-2">
-				<FBreadcrumbs :items="breadcrumbs" />
-				<Badge
-					class="hidden sm:inline-flex"
-					v-if="$resources.document?.doc && badge"
-					v-bind="badge"
-				/>
-			</div>
-			<div
-				class="mt-1 flex items-center justify-between space-x-2 sm:mt-0"
-				v-if="$resources.document?.doc"
-			>
-				<div class="sm:hidden">
-					<Badge v-if="$resources.document?.doc && badge" v-bind="badge" />
+	<div class="sticky top-0 z-10 bg-white">
+		<Header>
+			<div class="w-full">
+				<!-- Back link -->
+				<router-link
+					:to="object.list.route"
+					class="mb-3 flex items-center text-sm text-gray-600 hover:text-gray-900"
+				>
+					<lucide-arrow-left class="mr-1.5 h-3.5 w-3.5" />
+					Back to {{ object.list.title }}
+				</router-link>
+
+				<!-- Title row with badge and actions -->
+				<div class="flex items-center justify-between">
+					<div class="flex items-center space-x-3">
+						<h1 class="text-2xl font-semibold text-gray-900">
+							{{ title }}
+						</h1>
+						<Badge
+							v-if="$resources.document?.doc && badge"
+							v-bind="badge"
+						/>
+					</div>
+					<div
+						class="flex items-center space-x-2"
+						v-if="$resources.document?.doc"
+					>
+						<ActionButton
+							v-for="button in actions"
+							v-bind="button"
+							:key="button.label"
+						/>
+					</div>
 				</div>
-				<div class="space-x-2">
-					<ActionButton
-						v-for="button in actions"
-						v-bind="button"
-						:key="button.label"
-					/>
-				</div>
 			</div>
+		</Header>
+
+		<!-- Tabs Section -->
+		<div class="border-b bg-white px-5" v-if="!$resources.document.get.error && $resources.document.get.fetched">
+			<FTabs v-if="visibleTabs?.length" v-model="currentTab" :tabs="visibleTabs">
+				<template #default>
+					<!-- Empty template to prevent default tab panel rendering -->
+				</template>
+			</FTabs>
 		</div>
-	</Header>
+	</div>
+
 	<div>
-		<TabsWithRouter
-			v-if="!$resources.document.get.error && $resources.document.get.fetched"
-			:document="$resources.document?.doc"
-			:tabs="tabs"
-		>
-			<template #tab-content="{ tab }">
-				<!-- this div is required for some reason -->
-				<div></div>
-				<router-view
-					v-if="$resources.document?.doc"
-					:tab="tab"
-					:document="$resources.document"
-				/>
-			</template>
-		</TabsWithRouter>
 		<div
-			v-else-if="$resources.document.get.error"
+			v-if="$resources.document.get.error"
 			class="mx-auto mt-60 w-fit rounded border border-dashed px-12 py-8 text-center text-gray-600"
 		>
 			<lucide-alert-triangle class="mx-auto mb-4 h-6 w-6 text-red-600" />
 			<ErrorMessage :message="$resources.document.get.error" />
+		</div>
+		<div v-else-if="$resources.document.get.fetched">
+			<router-view
+				v-if="$resources.document?.doc"
+				:document="$resources.document"
+				:tab="activeTab"
+			/>
 		</div>
 	</div>
 </template>
@@ -55,9 +67,8 @@
 <script>
 import Header from '../components/Header.vue';
 import ActionButton from '../components/ActionButton.vue';
-import { Breadcrumbs } from 'frappe-ui';
+import { Breadcrumbs, Tabs } from 'frappe-ui';
 import { getObject } from '../objects';
-import TabsWithRouter from '../components/TabsWithRouter.vue';
 
 let subscribed = {};
 
@@ -77,8 +88,8 @@ export default {
 	components: {
 		Header,
 		ActionButton,
-		TabsWithRouter,
 		FBreadcrumbs: Breadcrumbs,
+		FTabs: Tabs,
 	},
 	resources: {
 		document() {
@@ -129,6 +140,33 @@ export default {
 				}
 				return true;
 			});
+		},
+		visibleTabs() {
+			return this.tabs.filter((tab) =>
+				tab.condition ? tab.condition({ doc: this.$resources.document?.doc }) : true,
+			);
+		},
+		currentTab: {
+			get() {
+				for (let tab of this.visibleTabs) {
+					let tabRouteName = tab.routeName || tab.route.name;
+					if (
+						this.$route.name === tabRouteName ||
+						tab.childrenRoutes?.includes(this.$route.name)
+					) {
+						return this.visibleTabs.indexOf(tab);
+					}
+				}
+				return 0;
+			},
+			set(val) {
+				let tab = this.visibleTabs[val];
+				let tabRouteName = tab.routeName || tab.route.name;
+				this.$router.push({ name: tabRouteName });
+			},
+		},
+		activeTab() {
+			return this.visibleTabs[this.currentTab];
 		},
 		title() {
 			let doc = this.$resources.document?.doc;

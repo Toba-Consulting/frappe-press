@@ -11,8 +11,9 @@
 			]"
 		>
 			<div
-				v-if="item.isActive"
-				class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-l"
+				v-if="item.isActive && item.name"
+				class="absolute left-0 top-0 bottom-0 w-1 rounded-l"
+				:style="{ backgroundColor: item.color || '#9C27B0' }"
 			></div>
 			<div class="flex w-full items-center space-x-2">
 				<span class="grid h-5 w-6 place-items-center">

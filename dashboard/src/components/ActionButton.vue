@@ -1,5 +1,5 @@
 <template>
-	<Button v-if="buttonProps" v-bind="buttonProps">
+	<Button v-if="buttonProps" v-bind="buttonProps" class="action-button">
 		<template
 			v-for="(slot, slotName) in buttonProps.slots"
 			v-slot:[slotName]="slotProps"
@@ -8,7 +8,7 @@
 		</template>
 	</Button>
 	<Dropdown v-else-if="dropdownProps" v-bind="dropdownProps">
-		<ActionButton v-bind="dropdownProps.button" />
+		<Button v-bind="dropdownProps.button" class="action-button-menu" />
 	</Dropdown>
 </template>
 <script>
@@ -29,22 +29,44 @@ export default {
 
 		dropdownProps() {
 			if (!this.$attrs.options) return null;
-			if (this.$attrs.condition) {
-				if (!this.$attrs.condition(this.$attrs.context)) return null;
-			}
 			return {
 				button: {
-					label: 'Options',
-					variant: 'ghost',
+					label: '',
+					variant: 'outline',
 					slots: {
-						icon: icon('more-horizontal'),
+						icon: icon('more-vertical'),
 					},
 				},
 				...this.$attrs,
-				label: this.$attrs.label,
 				options: this.$attrs.options,
 			};
 		},
 	},
 };
 </script>
+
+<style scoped>
+:deep(.action-button) {
+	border-radius: 0.5rem;
+	padding: 0.625rem 1.25rem;
+	font-weight: 500;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+}
+
+:deep(.action-button-menu) {
+	min-width: 2.75rem;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0;
+	border-radius: 0.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+:deep(.action-button-menu svg) {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+</style>

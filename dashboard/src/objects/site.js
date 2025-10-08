@@ -68,6 +68,9 @@ export default {
 	list: {
 		route: '/sites',
 		title: 'Sites',
+		component: defineAsyncComponent(
+			() => import('../components/site/SiteGridList.vue'),
+		),
 		fields: [
 			'plan.plan_title as plan_title',
 			'plan.price_usd as price_usd',

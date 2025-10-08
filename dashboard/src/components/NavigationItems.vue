@@ -53,6 +53,7 @@ export default {
 					route: '/welcome',
 					isActive: routeName === 'Welcome',
 					condition: !onboardingComplete,
+					color: '#9C27B0',
 				},
 				{
 					name: 'Notifications',
@@ -74,6 +75,7 @@ export default {
 						}
 					},
 					disabled: enforce2FA,
+					color: '#FF6B35',
 				},
 				{
 					name: 'Sites',
@@ -83,6 +85,7 @@ export default {
 						['Site List', 'Site Detail', 'New Site'].includes(routeName) ||
 						routeName.startsWith('Site Detail'),
 					disabled: enforce2FA,
+					color: '#00D68F',
 				},
 				{
 					name: 'Benches',
@@ -91,6 +94,7 @@ export default {
 					isActive: routeName.startsWith('Bench'),
 					condition: this.$team.doc?.is_desk_user,
 					disabled: !onboardingComplete || enforce2FA,
+					color: '#2196F3',
 				},
 				{
 					name: 'Bench Groups',
@@ -107,6 +111,7 @@ export default {
 						routeName.startsWith('Release Group Detail') ||
 						routeName === 'Enable Bench Groups',
 					disabled: enforce2FA,
+					color: '#9C27B0',
 				},
 				/*{
 					name: 'Servers',
@@ -127,6 +132,7 @@ export default {
 						this.$team.doc?.is_desk_user ||
 						(!!this.$team.doc.is_developer && this.$session.hasAppsAccess),
 					disabled: enforce2FA,
+					color: '#FFC107',
 				},
 				{
 					name: 'Dev Tools',
@@ -153,7 +159,7 @@ export default {
 							route: '/sql-playground',
 							isActive: routeName === 'SQL Playground',
 						},
-						/*			
+						/*
 						{
 							name: 'Binlog Browser',
 							icon: () => h(FileSearch),
@@ -169,6 +175,7 @@ export default {
 						'Binlog Browser',
 					].includes(routeName),
 					disabled: enforce2FA,
+					color: '#FF6B35',
 				},
 				{
 					name: 'Billing',
@@ -178,6 +185,7 @@ export default {
 					condition:
 						this.$team.doc?.is_desk_user || this.$session.hasBillingAccess,
 					disabled: enforce2FA,
+					color: '#00D68F',
 				},
 				{
 					name: 'Partnership',
@@ -186,6 +194,7 @@ export default {
 					isActive: routeName === 'Partnership',
 					/*condition: Boolean(this.$team.doc.erpnext_partner),*/
 					disabled: enforce2FA,
+					color: '#2196F3',
 				},
 				{
 					name: 'Settings',
@@ -193,6 +202,7 @@ export default {
 					route: '/settings',
 					isActive: routeName.startsWith('Settings'),
 					disabled: enforce2FA,
+					color: '#9C27B0',
 				},
 				/*{
 					name: 'Partner Admin',
